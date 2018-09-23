@@ -16,7 +16,6 @@ import (
 
 func main() {
 
-	// e2d89483a6f6b3f3a58df277b7334dc1f3b7b174
 	github := gh.GH{
 		APIKey: os.Getenv("GITHUB_API_KEY"),
 	}
