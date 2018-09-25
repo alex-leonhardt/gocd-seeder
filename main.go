@@ -7,7 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	_ "os/signal"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/alex-leonhardt/gocd-seeder/gh"
@@ -26,9 +27,19 @@ func main() {
 		Timeout: 5 * time.Second,
 	}
 
+	var shutdown = false
+	var grace = 65 * time.Second
+
 	go func() {
 
 		for {
+
+			// when we receive a signal, we set shutdown to true, which will break the endless loop
+			// and we should be good to stop as we should no longer be doing any processing, the
+			// timing is critical, as it _must_ be at least larger than the poll interval
+			if shutdown {
+				break
+			}
 
 			// keep pulling repos and add them as they are created ...
 			foundRepos, err := github.Repos("ci-gocd")
@@ -60,12 +71,18 @@ func main() {
 
 			}
 
-			time.Sleep(60 * time.Second)
+			time.Sleep(55 * time.Second)
 		}
 	}()
 
-	for {
-		time.Sleep(10 * time.Second)
-	}
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	signal := <-signals
+
+	shutdown = true
+	log.Printf("Received %v. Shutting down. %v grace period.\n", signal, grace)
+	time.Sleep(grace)
+	log.Println("Good bye.")
 
 }
