@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 
 	"github.com/google/go-github/github"
 )
@@ -52,17 +51,17 @@ type ConfigReposRetriever interface {
 
 // ConfigRepoRetriever retrieves a gocd config repository
 type ConfigRepoRetriever interface {
-	GetConfigRepo(*http.Client, *github.Repository) (ConfigRepo, error)
+	GetConfigRepo(*http.Client, *github.Repository, string) (ConfigRepo, error)
 }
 
 // ConfigRepoCreator creates a gocd config repo
 type ConfigRepoCreator interface {
-	CreateConfigRepo(hc *http.Client, repo *github.Repository) (ConfigRepo, error)
+	CreateConfigRepo(*http.Client, *github.Repository, string) (ConfigRepo, error)
 }
 
 // ConfigRepoDeleter deletes a gocd config repo
 type ConfigRepoDeleter interface {
-	DeleteConfigRepo(hc *http.Client, repo *github.Repository) error
+	DeleteConfigRepo(*http.Client, *github.Repository, string) error
 }
 
 /*
@@ -97,20 +96,28 @@ func (g *GoCD) GetConfigRepos(hc *http.Client) ([]ConfigRepo, error) {
 }
 
 // GetConfigRepo retrieves an existing config repo
-func (g *GoCD) GetConfigRepo(hc *http.Client, repo *github.Repository) (ConfigRepo, error) {
+func (g *GoCD) GetConfigRepo(hc *http.Client, repo *github.Repository, prefix string) (ConfigRepo, error) {
+
+	if prefix != "" {
+		prefix = fmt.Sprintf("%s-", prefix)
+	}
 
 	headers := http.Header{
 		"Accept":       []string{"application/vnd.go.cd.v1+json"},
 		"Content-Type": []string{"application/json"},
 	}
 
-	req, err := http.NewRequest(http.MethodGet, g.URL+"/"+*repo.Name, nil)
+	id := fmt.Sprintf("%s%s", prefix, *repo.Name)
+	req, err := http.NewRequest(http.MethodGet, g.URL+"/"+id, nil)
 	if err != nil {
 		return ConfigRepo{}, err
 	}
 	req.Header = headers
 	resp, err := hc.Do(req)
 
+	if resp == nil {
+		return ConfigRepo{}, err
+	}
 	if err != nil || resp.StatusCode > 399 {
 		if resp.StatusCode > 399 {
 			return ConfigRepo{}, fmt.Errorf(resp.Status)
@@ -126,7 +133,11 @@ func (g *GoCD) GetConfigRepo(hc *http.Client, repo *github.Repository) (ConfigRe
 }
 
 // CreateConfigRepo creates a previously non-existent config repo
-func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository) (ConfigRepo, error) {
+func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository, prefix string) (ConfigRepo, error) {
+
+	if prefix != "" {
+		prefix = fmt.Sprintf("%s-", prefix)
+	}
 
 	headers := http.Header{
 		"Accept":       []string{"application/vnd.go.cd.v1+json"},
@@ -134,7 +145,7 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository) (Confi
 	}
 
 	newRepoConfig := ConfigRepo{
-		ID:       *repo.Name,
+		ID:       fmt.Sprintf("%s%s", prefix, *repo.Name),
 		PluginID: "yaml.config.plugin",
 		Material: repoMaterial{
 			Type: "git",
@@ -154,6 +165,12 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository) (Confi
 
 	req, err := http.NewRequest(http.MethodPost, g.URL, bytes.NewBuffer(postBody))
 	req.Header = headers
+
+	// set basic user/pass for auth to GoCD
+	if g.User != "" && g.Password != "" {
+		req.SetBasicAuth(g.User, g.Password)
+	}
+
 	if err != nil {
 		return ConfigRepo{}, err
 	}
@@ -178,7 +195,10 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository) (Confi
 }
 
 // DeleteConfigRepo removes a config repo from GoCD
-func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *github.Repository) error {
+func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *github.Repository, prefix string) error {
+	if prefix != "" {
+		prefix = fmt.Sprintf("%s-", prefix)
+	}
 	return fmt.Errorf("not implemented")
 }
 
@@ -189,10 +209,10 @@ func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *github.Repository) error 
  */
 
 // New returns a GoCD Client
-func New() *GoCD {
+func New(config map[string]string) *GoCD {
 	return &GoCD{
-		URL:      os.Getenv("GOCD_URL") + "/go/api/admin/config_repos",
-		User:     os.Getenv("GOCD_USER"),
-		Password: os.Getenv("GOCD_PASSWORD"),
+		URL:      config["GoCDURL"] + "/go/api/admin/config_repos",
+		User:     config["GoCDUser"],
+		Password: config["GoCDPassword"],
 	}
 }

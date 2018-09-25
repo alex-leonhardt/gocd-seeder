@@ -10,20 +10,33 @@ import (
 
 // GH is GitHub
 type GH struct {
-	APIKey string
+	APIKey     string
+	OrgMatch   string
+	TopicMatch string
+}
+
+// New returns a configured GH struct
+func New(config map[string]string) *GH {
+	return &GH{
+		APIKey:     config["GithubAPIKey"],
+		OrgMatch:   config["GithubOrgMatch"],
+		TopicMatch: config["GithubTopicMatch"],
+	}
 }
 
 // Repos retruns Github repositories that we'd like to create GoCD config repos for
-func (gh *GH) Repos(topicMatch string) ([]*github.Repository, error) {
+func (gh *GH) Repos() ([]*github.Repository, error) {
 
 	var client *github.Client
 	var foundRepos []*github.Repository
+	var repos []*github.Repository
+	var err error
 
 	ctx := context.Background()
 
 	// cannot call github w/o api key
 	if gh.APIKey == "" {
-		return nil, errors.New("missing github APIKey")
+		return nil, errors.New("missing github api Key")
 	}
 
 	ts := oauth2.StaticTokenSource(
@@ -33,7 +46,11 @@ func (gh *GH) Repos(topicMatch string) ([]*github.Repository, error) {
 	client = github.NewClient(tc)
 
 	// get all repos
-	repos, _, err := client.Repositories.List(ctx, "", nil)
+	if gh.OrgMatch != "" {
+		repos, _, err = client.Repositories.ListByOrg(ctx, gh.OrgMatch, nil)
+	} else {
+		repos, _, err = client.Repositories.List(ctx, "", nil)
+	}
 
 	// return specific error when we hit the rate limit
 	if _, ok := err.(*github.RateLimitError); ok {
@@ -53,7 +70,7 @@ func (gh *GH) Repos(topicMatch string) ([]*github.Repository, error) {
 
 			// if we have > 0 topics, iterate over them until we have a match and add to the foundRepos slice
 			for _, topic := range rr.Topics {
-				if topic == topicMatch {
+				if topic == gh.TopicMatch {
 					foundRepos = append(foundRepos, rr)
 				}
 			}
