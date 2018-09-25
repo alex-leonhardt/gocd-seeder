@@ -2,7 +2,7 @@
 A tiny app to create GoCD pipelines using the yaml config plugin, this would run in paralllel with your GoCD server
 
 
-## WIP
+## WIP
 
 - add env/args to configure user/pass for GoCD admin/api
 - add config options for matching `org` and `topic`
@@ -12,7 +12,6 @@ A tiny app to create GoCD pipelines using the yaml config plugin, this would run
 - use structured logging go-kit/log
 - remove repo when repo present and `topic` was removed
 - output a metric of repos created/deleted (or make a http endpoint available)
-- stop gracefully (catch SIGTERM)
 - add `-version` arg
 - clean up
 -- write tests
