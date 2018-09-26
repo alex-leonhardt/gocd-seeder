@@ -5,15 +5,17 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/alex-leonhardt/gocd-seeder/gh"
 	"github.com/alex-leonhardt/gocd-seeder/gocd"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 )
 
 func help() {
@@ -34,6 +36,7 @@ Optional:
 =========
 GOCD_USER (e.g.: admin)
 GOCD_PASSWORD (e.g.: admin)
+LOG_LEVEL (e.g.: DEBUG)
 `)
 	os.Exit(0)
 }
@@ -56,6 +59,15 @@ func main() {
 		"GoCDURL":      os.Getenv("GOCD_URL"),
 		"GoCDUser":     os.Getenv("GOCD_USER"),
 		"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
+	}
+
+	logger := log.NewJSONLogger(os.Stdout)
+	logger = log.With(logger, "timestamp", log.DefaultTimestampUTC)
+
+	if os.Getenv("LOG_LEVEL") == "DEBUG" {
+		logger = level.NewFilter(logger, level.AllowDebug())
+	} else {
+		logger = level.NewFilter(logger, level.AllowInfo())
 	}
 
 	myGithub := gh.New(githubConfig)
@@ -85,7 +97,7 @@ func main() {
 			// and we should be good to stop as we should no longer be doing any processing, the
 			// timing is critical, as it _must_ be at least larger than the poll interval
 			if shutdownStatus.started {
-				log.Println("ready to shutdown")
+				level.Info(logger).Log("msg", "ready to shutdown")
 				shutdownStatus.finished = true
 				break
 			}
@@ -94,27 +106,27 @@ func main() {
 			foundRepos, err := myGithub.Repos()
 
 			if err != nil {
-				log.Println(err)
+				level.Error(logger).Log("err", err)
 			}
 
 			for _, repo := range foundRepos {
 
-				_, err := myGoCD.GetConfigRepo(hc, repo)
+				_, err := myGoCD.GetConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
 				if err != nil {
 
 					if err.Error() != "404 Not Found" {
-						log.Println(err)
+						level.Warn(logger).Log("err", err)
 					}
 
 					if err.Error() == "404 Not Found" {
 						newRepoConfig, err := myGoCD.CreateConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
 
 						if err != nil {
-							log.Println(err)
+							level.Error(logger).Log("err", err)
 							continue
 						}
 
-						log.Println("created", newRepoConfig)
+						level.Info(logger).Log("created", newRepoConfig.ID)
 					}
 
 				}
@@ -132,7 +144,7 @@ func main() {
 	signal := <-signals
 
 	shutdownStatus.started = true
-	log.Printf("received %v. shutting down. %vs grace period.\n", signal, grace)
+	level.Info(logger).Log("msg", fmt.Sprintf("received %v. shutting down. %vs grace period", signal, grace))
 
 	for i := 0; i <= grace; i++ {
 		if shutdownStatus.finished == true {
@@ -141,6 +153,7 @@ func main() {
 		time.Sleep(1 * time.Second)
 	}
 
-	log.Println("good bye")
+	level.Debug(logger).Log("numGoRoutines", runtime.NumGoroutine())
+	level.Info(logger).Log("msg", "good bye")
 
 }
