@@ -4,7 +4,6 @@ A tiny app to create GoCD pipelines using the yaml config plugin, this would run
 ## WIP
 
 - remove repo when repo present and `topic` was removed
-- use structured logging go-kit/log
 - output a metric of repos created/deleted (or make a http endpoint available)
 - clean up
   - write tests
