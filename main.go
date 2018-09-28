@@ -18,10 +18,27 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
+var (
+	versionString string
+	buildDateTime = time.Now().UTC()
+	buildHost, _  = os.Hostname()
+)
+
+func version() {
+	if versionString == "" {
+		versionString = "UNKNOWN (Add the following when compiling the app: -ldflags \"-X main.versionString=`git rev-list --max-count=1 --branches master --abbrev-commit`\")"
+	}
+	fmt.Println(os.Args[0] + "\n")
+	fmt.Println("Built on: \t" + fmt.Sprintf("%v", buildDateTime))
+	fmt.Println("Build host: \t" + buildHost)
+	fmt.Println("Version: \t" + fmt.Sprintf("%s", versionString))
+	os.Exit(0)
+}
+
 func help() {
 
 	fmt.Printf(
-		`Set the following env vars: 
+		`Set the following environment vars: 
 
 Required:
 =========
@@ -46,6 +63,9 @@ func main() {
 	if len(os.Args) > 1 {
 		if os.Args[1] == "help" {
 			help()
+		}
+		if os.Args[1] == "version" {
+			version()
 		}
 	}
 
