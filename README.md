@@ -1,3 +1,5 @@
+[![GoDoc](https://godoc.org/github.com/alex-leonhardt/gocd-seeder?status.svg)](https://godoc.org/github.com/alex-leonhardt/gocd-seeder)
+
 # gocd-seeder
 A tiny app to create GoCD pipelines using the yaml config plugin, this would run in paralllel with your GoCD server
 
