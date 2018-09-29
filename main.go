@@ -69,6 +69,8 @@ func main() {
 		}
 	}
 
+	// ------------------------------------------------
+
 	githubConfig := map[string]string{
 		"GithubAPIKey":     os.Getenv("GITHUB_API_KEY"),
 		"GithubOrgMatch":   os.Getenv("GITHUB_ORG"),
@@ -80,6 +82,8 @@ func main() {
 		"GoCDUser":     os.Getenv("GOCD_USER"),
 		"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
 	}
+
+	// ------------------------------------------------
 
 	logger := log.NewJSONLogger(os.Stdout)
 	logger = log.With(logger, "timestamp", log.DefaultTimestampUTC)
@@ -109,6 +113,8 @@ func main() {
 
 	var grace = 65
 
+	// ------------------------------------------------
+
 	go func() {
 
 		for {
@@ -123,45 +129,59 @@ func main() {
 			}
 
 			// keep pulling repos and add them as they are created ...
-			foundRepos, err := myGithub.Repos()
+			foundGitHubRepos, err := myGithub.Repos()
 
 			if err != nil {
-				level.Error(logger).Log("err", err)
+				level.Error(logger).Log("msg", err)
 			}
 
-			for _, repo := range foundRepos {
+			for _, repo := range foundGitHubRepos {
 
 				_, err := myGoCD.GetConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
 				if err != nil {
 
 					if err.Error() != "404 Not Found" {
-						level.Warn(logger).Log("err", err)
+						level.Warn(logger).Log("msg", err)
 					}
 
 					if err.Error() == "404 Not Found" {
 						newRepoConfig, err := myGoCD.CreateConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
 
 						if err != nil {
-							level.Error(logger).Log("err", err)
+							level.Error(logger).Log("msg", err)
 							continue
 						}
 
-						level.Info(logger).Log("created", newRepoConfig.ID)
+						level.Info(logger).Log("msg", "created "+newRepoConfig.ID)
 					}
 
 				}
 
 			}
 
+			// get all gocd config repos
+			foundGoCDConfigRepos, err := myGoCD.GetConfigRepos(hc)
+			if err != nil {
+				level.Error(logger).Log("msg", err)
+			}
+
+			err = gocd.Reconcile(logger, myGoCD, githubConfig["GithubOrgMatch"], hc, foundGoCDConfigRepos, foundGitHubRepos)
+			if err != nil {
+				level.Error(logger).Log("msg", err)
+			}
+
+			// need a better way of running through this, maybe with a channel <- time.Ticker that triggers the func instead
+			// and otherwise just breaks out when it's not running, this way when a signal is caught, we don't wait for nothing
 			time.Sleep(55 * time.Second)
 
 		}
 	}()
 
+	// ------------------------------------------------
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-
-	signal := <-signals
+	signal := <-signals // this blocks until a signal was caught
 
 	shutdownStatus.started = true
 	level.Info(logger).Log("msg", fmt.Sprintf("received %v. shutting down. %vs grace period", signal, grace))

@@ -5,14 +5,15 @@ A tiny app to create GoCD pipelines using the yaml config plugin, this would run
 
 ## WIP
 
-- remove repo when repo present and `topic` was removed
 - output a metric of repos created/deleted (or make a http endpoint available)
+- make docker image avail in docker hub
+- try to get rid of sleep and instead use a ticker or some other way to schedule a func or go routine to be run
 - clean up
   - write tests
   - make use of the interfaces etc. etc.
   - write logging and metric decorators and wrap func calls where appropriate
   - ensure to only output on startup once and when errors occur with more helpful messages
-- make docker image avail in docker hub
+
 
 
 ## BUILD

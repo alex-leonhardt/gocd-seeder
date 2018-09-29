@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/google/go-github/github"
 )
 
@@ -31,11 +33,17 @@ type repoMaterial struct {
 
 // ConfigRepo is a representation of a GoCD config repo
 type ConfigRepo struct {
-	Links          map[string]string `json:"_links,omitempty"`
-	ID             string            `json:"id"`
-	PluginID       string            `json:"plugin_id"`
-	Material       repoMaterial      `json:"material"`
-	Configurations []interface{}     `json:"configurations,omitempty"`
+	Links         map[string]map[string]string `json:"_links,omitempty"`
+	ID            string                       `json:"id"`
+	PluginID      string                       `json:"plugin_id"`
+	Material      repoMaterial                 `json:"material"`
+	Configuration []interface{}                `json:"configuration,omitempty"`
+}
+
+// AllConfigRepos contains the response from GoCD containing all config repos
+type AllConfigRepos struct {
+	Links    map[string]map[string]string `json:"_links,omitempty"`
+	Embedded map[string][]ConfigRepo      `json:"_embedded,omitempty"`
 }
 
 /*
@@ -88,11 +96,19 @@ func (g *GoCD) GetConfigRepos(hc *http.Client) ([]ConfigRepo, error) {
 	}
 	defer resp.Body.Close()
 
-	var repos []ConfigRepo
-	jd := json.NewDecoder(resp.Body)
-	jd.Decode(&repos)
+	// not entirely sure why this gets an EOF error when doing this the same way as GetConfigRepo
+	// so for now we'll read in the entire response, and then unmarshal
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	repos := AllConfigRepos{}
+	err = json.Unmarshal(body, &repos)
+	if err != nil {
+		return nil, err
+	}
 
-	return repos, fmt.Errorf("not implemented")
+	return repos.Embedded["config_repos"], nil
 }
 
 // GetConfigRepo retrieves an existing config repo
@@ -195,11 +211,30 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository, prefix
 }
 
 // DeleteConfigRepo removes a config repo from GoCD
-func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *github.Repository, prefix string) error {
+func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *ConfigRepo, prefix string) error {
 	if prefix != "" {
 		prefix = fmt.Sprintf("%s-", prefix)
 	}
-	return fmt.Errorf("not implemented")
+
+	headers := http.Header{
+		"Accept":       []string{"application/vnd.go.cd.v1+json"},
+		"Content-Type": []string{"application/json"},
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, g.URL+"/"+repo.ID, nil)
+	if err != nil {
+		return err
+	}
+	req.Header = headers
+	resp, err := hc.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode > 399 {
+		return fmt.Errorf("%v", resp.Status)
+	}
+
+	return nil
 }
 
 /*
@@ -215,4 +250,27 @@ func New(config map[string]string) *GoCD {
 		User:     config["GoCDUser"],
 		Password: config["GoCDPassword"],
 	}
+}
+
+// Reconcile ensures that repos that have been removed from Github, or are no longer found when
+// they had the topic to match removed, are also removed from GoCD
+func Reconcile(logger log.Logger, g *GoCD, prefix string, hc *http.Client, gocdRepos []ConfigRepo, ghRepos []*github.Repository) error {
+
+	githubSeen := map[string]bool{}
+	for _, ghRepo := range ghRepos {
+		githubSeen[*ghRepo.Name] = true
+	}
+
+	for _, gocdRepo := range gocdRepos {
+		if githubSeen[gocdRepo.Material.Attributes.Name] != true ||
+			!githubSeen[gocdRepo.Material.Attributes.Name] {
+			err := g.DeleteConfigRepo(hc, &gocdRepo, prefix)
+			if err != nil {
+				return err
+			}
+			level.Info(logger).Log("msg", "removed gocd config repo for "+gocdRepo.Material.Attributes.Name+" ("+gocdRepo.Material.Attributes.URL+")")
+		}
+	}
+
+	return nil
 }
