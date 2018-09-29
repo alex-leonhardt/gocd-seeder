@@ -45,7 +45,6 @@ Required:
 GITHUB_TOPIC (e.g.: ci-gocd)
 GITHUB_API_KEY (e.g.: 1235436)
 GITHUB_ORG (e.g.: gooflix)
-
 GOCD_URL (e.g.: http://localhost:8081)
 
 
@@ -98,7 +97,7 @@ func main() {
 	myGoCD := gocd.New(gocdConfig)
 
 	hc := &http.Client{
-		Timeout: 15 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	type shutdown struct {
