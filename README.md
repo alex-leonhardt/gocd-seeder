@@ -1,20 +1,16 @@
 [![GoDoc](https://godoc.org/github.com/alex-leonhardt/gocd-seeder?status.svg)](https://godoc.org/github.com/alex-leonhardt/gocd-seeder)
 
-# gocd-seeder
-A tiny app to create GoCD pipelines using the yaml config plugin, this would run in paralllel with your GoCD server
+# GOCD-SEEDER
+A GoCD-Seeder scans a GitHub org for repositories that contain a pre-specified "topic" (default: ci-gocd), if a repo is found, it will create a GoCD config repo, which will make GoCD poll the repository for the file "ci.gocd.yaml" and create (a) new pipeline/s basaed on the config in that file.
 
 ## WIP
 
-- output a metric of repos created/deleted (or make a http endpoint available)
 - make docker image avail in docker hub
-- try to get rid of sleep and instead use a ticker or some other way to schedule a func or go routine to be run
+- output a metric of repos created/deleted (or make a http endpoint available)
 - clean up
   - write tests
   - make use of the interfaces etc. etc.
   - write logging and metric decorators and wrap func calls where appropriate
-  - ensure to only output on startup once and when errors occur with more helpful messages
-
-
 
 ## BUILD
 
@@ -36,3 +32,33 @@ To check version and help you can use:
 docker run --rm -ti local/gocd-seeder:latest version
 docker run --rm -ti local/gocd-seeder:latest help
 ```
+
+## METRICS
+
+A metrics endpoint is running by default on port `:9090` and is reachable via `http://<IP|localhost>:9090/debug/vars`; metrics are provided via `expvar` - you can use things like
+
+- [Datadog](https://docs.datadoghq.com/integrations/go_expvar/)
+- [expvarmon](https://github.com/divan/expvarmon)
+  ```shell
+  expvarmon -ports="9090" -vars "Goroutines,Uptime,mem:memstats.Alloc,mem:memstats.Sys,mem:memstats.HeapAlloc,mem:memstats.HeapInuse,duration:memstats.PauseNs,duration:memstats.PauseTotalNs"
+  ```
+- Prometheus (maybe coming soon at some point if it is useful, `expvar` seems quick and cheap right now)
+
+to monitor the app's memory, gc, goroutines & uptime
+
+### Config
+
+Use env variables to set the stats port and IP to listen on:
+```
+export HTTP_STATS_PORT=<PORT>
+export HTTP_STATS_IP=<IP|localhost>
+```
+
+the defaults are: 
+
+```
+HTTP_STATS_PORT=9090
+HTTP_STATS_IP=""
+```
+
+which will make the endpoint available on all interfaces, on port 9090

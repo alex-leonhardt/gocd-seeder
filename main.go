@@ -1,9 +1,11 @@
 /*
-gocd-seeder
+GoCD-Seeder scans a GitHub org for repositories that contain a pre-specified "topic" (default: ci-gocd), if a repo is found, it will create a GoCD config repo, which will make GoCD poll the repository for the file "ci.gocd.yaml" and create (a) new pipeline/s basaed on the config in that file.
 */
+
 package main
 
 import (
+	"expvar"
 	"fmt"
 	"net/http"
 	"os"
@@ -22,6 +24,7 @@ var (
 	versionString string
 	buildDateTime = time.Now().UTC()
 	buildHost, _  = os.Hostname()
+	startTime     = time.Now().UTC()
 )
 
 func version() {
@@ -42,20 +45,45 @@ func help() {
 
 Required:
 =========
-GITHUB_TOPIC (e.g.: ci-gocd)
-GITHUB_API_KEY (e.g.: 1235436)
-GITHUB_ORG (e.g.: gooflix)
-GOCD_URL (e.g.: http://localhost:8081)
-
+GITHUB_API_KEY  (e.g.: 1235436)
+GITHUB_ORG      (e.g.: gooflix)
 
 Optional:
 =========
-GOCD_USER (e.g.: admin)
-GOCD_PASSWORD (e.g.: admin)
-LOG_LEVEL (e.g.: DEBUG)
+GITHUB_TOPIC    (default: ci-gocd)
+GOCD_URL        (default: http://localhost:8081)
+GOCD_USER       (e.g.: admin)
+GOCD_PASSWORD   (e.g.: admin)
+HTTP_STATS_IP   (default: "")
+HTTP_STATS_PORT (default: 9090)
+LOG_LEVEL       (e.g.: DEBUG)
 `)
 	os.Exit(0)
 }
+
+// helper func to return a default when os.Getenv fails to find a value
+func getenv(key, fallback string) string {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return fallback
+	}
+	return value
+}
+
+// ------------------------------------------------
+
+// provide goroutines stats for expvar
+func goroutines() interface{} {
+	return runtime.NumGoroutine()
+}
+
+// provide uptime in seconds for expvar
+func uptime() interface{} {
+	uptime := time.Since(startTime).Seconds()
+	return int64(uptime)
+}
+
+// ------------------------------------------------
 
 func main() {
 
@@ -73,19 +101,25 @@ func main() {
 	githubConfig := map[string]string{
 		"GithubAPIKey":     os.Getenv("GITHUB_API_KEY"),
 		"GithubOrgMatch":   os.Getenv("GITHUB_ORG"),
-		"GithubTopicMatch": os.Getenv("GITHUB_TOPIC"),
+		"GithubTopicMatch": getenv("GITHUB_TOPIC", "ci-gocd"),
 	}
 
 	gocdConfig := map[string]string{
-		"GoCDURL":      os.Getenv("GOCD_URL"),
+		"GoCDURL":      getenv("GOCD_URL", "http://localhost:8081"),
 		"GoCDUser":     os.Getenv("GOCD_USER"),
 		"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
+	}
+
+	httpConfig := map[string]string{
+		"StatsIP":   getenv("HTTP_STATS_IP", ""),
+		"StatsPort": getenv("HTTP_STATS_PORT", "9090"),
 	}
 
 	// ------------------------------------------------
 
 	logger := log.NewJSONLogger(os.Stdout)
 	logger = log.With(logger, "timestamp", log.DefaultTimestampUTC)
+	logger = log.With(logger, "source", log.Caller(3))
 
 	if os.Getenv("LOG_LEVEL") == "DEBUG" {
 		logger = level.NewFilter(logger, level.AllowDebug())
@@ -100,17 +134,17 @@ func main() {
 		Timeout: 10 * time.Second,
 	}
 
-	type shutdown struct {
-		started  bool
-		finished bool
-	}
+	doneChan := make(chan bool)
+	ticker := time.NewTicker(55 * time.Second)
 
-	var shutdownStatus = shutdown{
-		started:  false,
-		finished: false,
-	}
+	// ------------------------------------------------
 
-	var grace = 65
+	expvar.Publish("Uptime", expvar.Func(uptime))
+	expvar.Publish("Goroutines", expvar.Func(goroutines))
+
+	go func() {
+		level.Info(logger).Log("msg", http.ListenAndServe(fmt.Sprintf("%s:%s", httpConfig["StatsIP"], httpConfig["StatsPort"]), nil))
+	}()
 
 	// ------------------------------------------------
 
@@ -118,21 +152,14 @@ func main() {
 
 		for {
 
-			// when we receive a signal, we set shutdown to true, which will break the endless loop
-			// and we should be good to stop as we should no longer be doing any processing, the
-			// timing is critical, as it _must_ be at least larger than the poll interval
-			if shutdownStatus.started {
-				level.Info(logger).Log("msg", "ready to shutdown")
-				shutdownStatus.finished = true
-				break
-			}
-
 			// keep pulling repos and add them as they are created ...
 			foundGitHubRepos, err := myGithub.Repos()
 
 			if err != nil {
 				level.Error(logger).Log("msg", err)
 			}
+
+			// -------------------------------------
 
 			for _, repo := range foundGitHubRepos {
 
@@ -158,6 +185,8 @@ func main() {
 
 			}
 
+			// -------------------------------------
+
 			// get all gocd config repos
 			foundGoCDConfigRepos, err := myGoCD.GetConfigRepos(hc)
 			if err != nil {
@@ -169,9 +198,16 @@ func main() {
 				level.Error(logger).Log("msg", err)
 			}
 
-			// need a better way of running through this, maybe with a channel <- time.Ticker that triggers the func instead
-			// and otherwise just breaks out when it's not running, this way when a signal is caught, we don't wait for nothing
-			time.Sleep(55 * time.Second)
+			// -------------------------------------
+
+			// use a ticker to continue, and a done channel to break out, it's neater
+			select {
+			case <-doneChan:
+				level.Info(logger).Log("msg", "shutting down goroutine")
+				break
+			case <-ticker.C:
+				level.Debug(logger).Log("msg", "ticker still ticking")
+			}
 
 		}
 	}()
@@ -182,16 +218,12 @@ func main() {
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	signal := <-signals // this blocks until a signal was caught
 
-	shutdownStatus.started = true
-	level.Info(logger).Log("msg", fmt.Sprintf("received %v. shutting down. %vs grace period", signal, grace))
-
-	for i := 0; i <= grace; i++ {
-		if shutdownStatus.finished == true {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
-
+	// stop the ticker in the go routine
+	level.Info(logger).Log("msg", fmt.Sprintf("received %v; shutting down", signal))
+	ticker.Stop()
+	time.Sleep(1 * time.Second)
+	doneChan <- true
+	time.Sleep(1 * time.Second)
 	level.Debug(logger).Log("numGoRoutines", runtime.NumGoroutine())
 	level.Info(logger).Log("msg", "good bye")
 
