@@ -5,12 +5,15 @@ A GoCD-Seeder scans a GitHub org for repositories that contain a pre-specified "
 
 ## WIP
 
-- make docker image avail in docker hub
-- output a metric of repos created/deleted (or make a http endpoint available)
 - clean up
   - write tests
   - make use of the interfaces etc. etc.
   - write logging and metric decorators and wrap func calls where appropriate
+
+## NTHs
+_(nice to haves)_
+
+- metric (counter) of repos created, deleted
 
 ## BUILD
 
@@ -20,6 +23,19 @@ go build -ldflags "-X main.versionString=`git rev-list --max-count=1 --branches 
 
 ### Docker
 
+#### Docker Hub
+
+You can now use the below command to just pull down the latest version (master)
+```
+docker pull alexleonhardt/gocd-seeder:latest
+```
+
+Or alternatively, by tags:
+```
+docker pull alexleonhardt/gocd-seeder:<tag>
+```
+
+#### Build 
 Multi-stage docker build, it's using alpine as the base OS so we can get a shell if we needed to debug the app for some reason.
 
 ```
