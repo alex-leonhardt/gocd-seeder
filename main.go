@@ -198,7 +198,7 @@ func main() {
 					level.Error(logger).Log("msg", errors.Wrap(err, "error retrieving all config repos from gocd"))
 				}
 
-				err = gocd.Reconcile(myGoCD, githubConfig["GithubOrgMatch"], foundGoCDConfigRepos, foundGitHubRepos)
+				err = gocd.Reconcile(myGoCD, logger, githubConfig["GithubOrgMatch"], foundGoCDConfigRepos, foundGitHubRepos)
 				if err != nil {
 					level.Error(logger).Log("msg", errors.Wrap(err, "error reconciling gocd config repos with github repos"))
 				}

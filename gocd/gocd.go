@@ -55,12 +55,12 @@ type GoCD struct {
 	logger   log.Logger
 }
 
-// ConfigInterface provides implementations that interact with GoCD
-type ConfigInterface interface {
+// ConfigRepoInterface provides implementations that interact with GoCD
+type ConfigRepoInterface interface {
 	GetConfigRepos() ([]ConfigRepo, error)
 	GetConfigRepo(*github.Repository, string) (ConfigRepo, error)
 	CreateConfigRepo(*github.Repository, string) (ConfigRepo, error)
-	DeleteConfigRepo(*github.Repository, string) error
+	DeleteConfigRepo(*ConfigRepo, string) error
 }
 
 /*
@@ -234,7 +234,7 @@ func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) error {
  */
 
 // New returns a GoCD Client
-func New(config map[string]string, hc *http.Client, logger log.Logger) *GoCD {
+func New(config map[string]string, hc *http.Client, logger log.Logger) ConfigRepoInterface {
 	return &GoCD{
 		URL:      config["GoCDURL"] + "/go/api/admin/config_repos",
 		User:     config["GoCDUser"],
@@ -246,7 +246,7 @@ func New(config map[string]string, hc *http.Client, logger log.Logger) *GoCD {
 
 // Reconcile ensures that repos that have been removed from Github, or are no longer found when
 // they had the topic to match removed, are also removed from GoCD
-func Reconcile(g *GoCD, prefix string, gocdRepos []ConfigRepo, ghRepos []*github.Repository) error {
+func Reconcile(g ConfigRepoInterface, logger log.Logger, prefix string, gocdRepos []ConfigRepo, ghRepos []*github.Repository) error {
 
 	githubSeen := map[string]bool{}
 	for _, ghRepo := range ghRepos {
@@ -260,7 +260,7 @@ func Reconcile(g *GoCD, prefix string, gocdRepos []ConfigRepo, ghRepos []*github
 			if err != nil {
 				return errors.Wrap(err, "error deleting config repo "+gocdRepo.ID)
 			}
-			level.Info(g.logger).Log("msg", fmt.Sprintf("removed gocd config repo %s for %s (%s)", gocdRepo.ID, gocdRepo.Material.Attributes.Name, gocdRepo.Material.Attributes.URL))
+			level.Info(logger).Log("msg", fmt.Sprintf("removed gocd config repo %s for %s (%s)", gocdRepo.ID, gocdRepo.Material.Attributes.Name, gocdRepo.Material.Attributes.URL))
 		}
 	}
 

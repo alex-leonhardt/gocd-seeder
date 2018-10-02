@@ -19,8 +19,13 @@ type GH struct {
 	logger     log.Logger
 }
 
+// Githubber provides funcs to retrieve Github repositories
+type Githubber interface {
+	Repos() ([]*github.Repository, error)
+}
+
 // New returns a configured GH struct
-func New(config map[string]string, logger log.Logger) *GH {
+func New(config map[string]string, logger log.Logger) Githubber {
 	return &GH{
 		APIKey:     config["GithubAPIKey"],
 		OrgMatch:   config["GithubOrgMatch"],
@@ -29,7 +34,7 @@ func New(config map[string]string, logger log.Logger) *GH {
 	}
 }
 
-// Repos retruns Github repositories that we'd like to create GoCD config repos for
+// Repos implements Githubber Github repositories that we'd like to create GoCD config repos for
 func (gh *GH) Repos() ([]*github.Repository, error) {
 
 	var client *github.Client
