@@ -10,6 +10,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/go-github/github"
+	"github.com/pkg/errors"
 )
 
 // GoCD provides GoCD funcs
@@ -87,12 +88,12 @@ func (g *GoCD) GetConfigRepos(hc *http.Client) ([]ConfigRepo, error) {
 
 	req, err := http.NewRequest("GET", g.URL, nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error creating http request")
 	}
 	req.Header = headers
 	resp, err := hc.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error doing http request")
 	}
 	defer resp.Body.Close()
 
@@ -100,12 +101,12 @@ func (g *GoCD) GetConfigRepos(hc *http.Client) ([]ConfigRepo, error) {
 	// so for now we'll read in the entire response, and then unmarshal
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error reading response body")
 	}
 	repos := AllConfigRepos{}
 	err = json.Unmarshal(body, &repos)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error unmarshaling json from response body")
 	}
 
 	return repos.Embedded["config_repos"], nil
@@ -126,19 +127,20 @@ func (g *GoCD) GetConfigRepo(hc *http.Client, repo *github.Repository, prefix st
 	id := fmt.Sprintf("%s%s", prefix, *repo.Name)
 	req, err := http.NewRequest(http.MethodGet, g.URL+"/"+id, nil)
 	if err != nil {
-		return ConfigRepo{}, err
+		return ConfigRepo{}, errors.Wrap(err, "error creating request to retrieve gocd config repo")
 	}
 	req.Header = headers
 	resp, err := hc.Do(req)
 
 	if resp == nil {
-		return ConfigRepo{}, err
+		return ConfigRepo{}, errors.Wrap(err, "error retrieving a response from gocd")
 	}
+
 	if err != nil || resp.StatusCode > 399 {
 		if resp.StatusCode > 399 {
-			return ConfigRepo{}, fmt.Errorf(resp.Status)
+			return ConfigRepo{}, errors.Wrap(err, resp.Status)
 		}
-		return ConfigRepo{}, err
+		return ConfigRepo{}, errors.Wrap(err, "error executing request to retrieve gocd config repo")
 	}
 	defer resp.Body.Close()
 
@@ -176,7 +178,7 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository, prefix
 
 	postBody, err := json.Marshal(newRepoConfig)
 	if err != nil {
-		return ConfigRepo{}, err
+		return ConfigRepo{}, errors.Wrap(err, "error marshalling json to create gocd config repo")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, g.URL, bytes.NewBuffer(postBody))
@@ -188,7 +190,7 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository, prefix
 	}
 
 	if err != nil {
-		return ConfigRepo{}, err
+		return ConfigRepo{}, errors.Wrap(err, "error creating http post request")
 	}
 
 	req.Header = headers
@@ -197,10 +199,10 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository, prefix
 	if err != nil || resp.StatusCode > 399 {
 		if resp.StatusCode > 399 {
 			msg, _ := ioutil.ReadAll(resp.Body)
-			return ConfigRepo{}, fmt.Errorf("%v %v", resp.Status, string(msg))
+			return ConfigRepo{}, errors.Wrap(err, fmt.Sprintf("%v %v", resp.Status, string(msg)))
 		}
 
-		return ConfigRepo{}, err
+		return ConfigRepo{}, errors.Wrap(err, "error executing http post request")
 	}
 
 	var cfgrepo ConfigRepo
@@ -223,15 +225,15 @@ func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *ConfigRepo, prefix string
 
 	req, err := http.NewRequest(http.MethodDelete, g.URL+"/"+repo.ID, nil)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error creating new http request")
 	}
 	req.Header = headers
 	resp, err := hc.Do(req)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error executing http request to delete a gocd config repo")
 	}
 	if resp.StatusCode > 399 {
-		return fmt.Errorf("%v", resp.Status)
+		return errors.Wrap(err, resp.Status)
 	}
 
 	return nil
@@ -266,9 +268,9 @@ func Reconcile(logger log.Logger, g *GoCD, prefix string, hc *http.Client, gocdR
 			!githubSeen[gocdRepo.Material.Attributes.Name] {
 			err := g.DeleteConfigRepo(hc, &gocdRepo, prefix)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "error deleting config repo "+gocdRepo.ID)
 			}
-			level.Info(logger).Log("msg", "removed gocd config repo for "+gocdRepo.Material.Attributes.Name+" ("+gocdRepo.Material.Attributes.URL+")")
+			level.Info(logger).Log("msg", fmt.Sprintf("removed gocd config repo %s for %s (%s)", gocdRepo.ID, gocdRepo.Material.Attributes.Name, gocdRepo.Material.Attributes.URL))
 		}
 	}
 

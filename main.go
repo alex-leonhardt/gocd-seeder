@@ -18,6 +18,7 @@ import (
 	"github.com/alex-leonhardt/gocd-seeder/gocd"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -119,7 +120,7 @@ func main() {
 
 	logger := log.NewJSONLogger(os.Stdout)
 	logger = log.With(logger, "timestamp", log.DefaultTimestampUTC)
-	logger = log.With(logger, "source", log.Caller(3))
+	logger = log.With(logger, "source", log.Caller(5))
 
 	if os.Getenv("LOG_LEVEL") == "DEBUG" {
 		logger = level.NewFilter(logger, level.AllowDebug())
@@ -156,46 +157,49 @@ func main() {
 			foundGitHubRepos, err := myGithub.Repos()
 
 			if err != nil {
-				level.Error(logger).Log("msg", err)
+				level.Error(logger).Log("msg", errors.Wrap(err, "error retrieving github repos"))
 			}
 
 			// -------------------------------------
+			if foundGitHubRepos != nil {
 
-			for _, repo := range foundGitHubRepos {
+				for _, repo := range foundGitHubRepos {
 
-				_, err := myGoCD.GetConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
-				if err != nil {
+					_, err := myGoCD.GetConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
+					if err != nil {
 
-					if err.Error() != "404 Not Found" {
-						level.Warn(logger).Log("msg", err)
-					}
-
-					if err.Error() == "404 Not Found" {
-						newRepoConfig, err := myGoCD.CreateConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
-
-						if err != nil {
-							level.Error(logger).Log("msg", err)
-							continue
+						if err.Error() != "404 Not Found" {
+							level.Warn(logger).Log("msg", errors.Wrap(err, "error retrieving gocd config repo for "+*repo.FullName))
 						}
 
-						level.Info(logger).Log("msg", "created "+newRepoConfig.ID)
+						if err.Error() == "404 Not Found" {
+							newRepoConfig, err := myGoCD.CreateConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
+
+							if err != nil {
+								level.Error(logger).Log("msg", errors.Wrap(err, "error creating config repo for "+*repo.FullName))
+								continue
+							}
+
+							level.Info(logger).Log("msg", "created "+newRepoConfig.ID)
+						}
+
 					}
 
 				}
 
-			}
+				// -------------------------------------
 
-			// -------------------------------------
+				// get all gocd config repos
+				foundGoCDConfigRepos, err := myGoCD.GetConfigRepos(hc)
+				if err != nil {
+					level.Error(logger).Log("msg", errors.Wrap(err, "error retrieving all config repos from gocd"))
+				}
 
-			// get all gocd config repos
-			foundGoCDConfigRepos, err := myGoCD.GetConfigRepos(hc)
-			if err != nil {
-				level.Error(logger).Log("msg", err)
-			}
+				err = gocd.Reconcile(logger, myGoCD, githubConfig["GithubOrgMatch"], hc, foundGoCDConfigRepos, foundGitHubRepos)
+				if err != nil {
+					level.Error(logger).Log("msg", errors.Wrap(err, "error reconciling gocd config repos with github repos"))
+				}
 
-			err = gocd.Reconcile(logger, myGoCD, githubConfig["GithubOrgMatch"], hc, foundGoCDConfigRepos, foundGitHubRepos)
-			if err != nil {
-				level.Error(logger).Log("msg", err)
 			}
 
 			// -------------------------------------

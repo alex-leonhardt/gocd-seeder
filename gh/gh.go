@@ -2,9 +2,9 @@ package gh
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/go-github/github"
+	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
 
@@ -36,7 +36,7 @@ func (gh *GH) Repos() ([]*github.Repository, error) {
 
 	// cannot call github w/o api key
 	if gh.APIKey == "" {
-		return nil, errors.New("missing github api Key")
+		return nil, errors.Wrap(errors.New("missing github api key"), "environment variable not set")
 	}
 
 	ts := oauth2.StaticTokenSource(
@@ -54,12 +54,12 @@ func (gh *GH) Repos() ([]*github.Repository, error) {
 
 	// return specific error when we hit the rate limit
 	if _, ok := err.(*github.RateLimitError); ok {
-		return nil, errors.New("hit rate limit")
+		return nil, errors.Wrap(err, "github rate limit hit")
 	}
 
 	// else just return the error
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error listing github repos")
 	}
 
 	// filter out only the repos we're interested in and return the slice
