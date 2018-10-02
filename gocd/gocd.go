@@ -13,13 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GoCD provides GoCD funcs
-type GoCD struct {
-	URL      string
-	User     string
-	Password string
-}
-
 type repoAttributes struct {
 	URL        string `json:"url"`
 	Name       string `json:"name,omitempty"`
@@ -53,24 +46,21 @@ type AllConfigRepos struct {
 
  */
 
-// ConfigReposRetriever retrieves all gocd config repositories
-type ConfigReposRetriever interface {
-	GetConfigRepos(*http.Client) ([]ConfigRepo, error)
+// GoCD provides GoCD funcs
+type GoCD struct {
+	URL      string
+	User     string
+	Password string
+	hc       *http.Client
+	logger   log.Logger
 }
 
-// ConfigRepoRetriever retrieves a gocd config repository
-type ConfigRepoRetriever interface {
-	GetConfigRepo(*http.Client, *github.Repository, string) (ConfigRepo, error)
-}
-
-// ConfigRepoCreator creates a gocd config repo
-type ConfigRepoCreator interface {
-	CreateConfigRepo(*http.Client, *github.Repository, string) (ConfigRepo, error)
-}
-
-// ConfigRepoDeleter deletes a gocd config repo
-type ConfigRepoDeleter interface {
-	DeleteConfigRepo(*http.Client, *github.Repository, string) error
+// ConfigInterface provides implementations that interact with GoCD
+type ConfigInterface interface {
+	GetConfigRepos() ([]ConfigRepo, error)
+	GetConfigRepo(*github.Repository, string) (ConfigRepo, error)
+	CreateConfigRepo(*github.Repository, string) (ConfigRepo, error)
+	DeleteConfigRepo(*github.Repository, string) error
 }
 
 /*
@@ -80,7 +70,7 @@ type ConfigRepoDeleter interface {
  */
 
 // GetConfigRepos populates the GoCD struct with config repos
-func (g *GoCD) GetConfigRepos(hc *http.Client) ([]ConfigRepo, error) {
+func (g *GoCD) GetConfigRepos() ([]ConfigRepo, error) {
 	headers := http.Header{
 		"Accept":       []string{"application/vnd.go.cd.v1+json"},
 		"Content-Type": []string{"application/json"},
@@ -91,7 +81,7 @@ func (g *GoCD) GetConfigRepos(hc *http.Client) ([]ConfigRepo, error) {
 		return nil, errors.Wrap(err, "error creating http request")
 	}
 	req.Header = headers
-	resp, err := hc.Do(req)
+	resp, err := g.hc.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "error doing http request")
 	}
@@ -113,7 +103,7 @@ func (g *GoCD) GetConfigRepos(hc *http.Client) ([]ConfigRepo, error) {
 }
 
 // GetConfigRepo retrieves an existing config repo
-func (g *GoCD) GetConfigRepo(hc *http.Client, repo *github.Repository, prefix string) (ConfigRepo, error) {
+func (g *GoCD) GetConfigRepo(repo *github.Repository, prefix string) (ConfigRepo, error) {
 
 	if prefix != "" {
 		prefix = fmt.Sprintf("%s-", prefix)
@@ -130,15 +120,13 @@ func (g *GoCD) GetConfigRepo(hc *http.Client, repo *github.Repository, prefix st
 		return ConfigRepo{}, errors.Wrap(err, "error creating request to retrieve gocd config repo")
 	}
 	req.Header = headers
-	resp, err := hc.Do(req)
-
+	resp, err := g.hc.Do(req)
 	if resp == nil {
 		return ConfigRepo{}, errors.Wrap(err, "error retrieving a response from gocd")
 	}
-
 	if err != nil || resp.StatusCode > 399 {
 		if resp.StatusCode > 399 {
-			return ConfigRepo{}, errors.Wrap(err, resp.Status)
+			return ConfigRepo{}, errors.New(resp.Status)
 		}
 		return ConfigRepo{}, errors.Wrap(err, "error executing request to retrieve gocd config repo")
 	}
@@ -151,7 +139,7 @@ func (g *GoCD) GetConfigRepo(hc *http.Client, repo *github.Repository, prefix st
 }
 
 // CreateConfigRepo creates a previously non-existent config repo
-func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository, prefix string) (ConfigRepo, error) {
+func (g *GoCD) CreateConfigRepo(repo *github.Repository, prefix string) (ConfigRepo, error) {
 
 	if prefix != "" {
 		prefix = fmt.Sprintf("%s-", prefix)
@@ -194,7 +182,7 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository, prefix
 	}
 
 	req.Header = headers
-	resp, err := hc.Do(req)
+	resp, err := g.hc.Do(req)
 
 	if err != nil || resp.StatusCode > 399 {
 		if resp.StatusCode > 399 {
@@ -213,7 +201,7 @@ func (g *GoCD) CreateConfigRepo(hc *http.Client, repo *github.Repository, prefix
 }
 
 // DeleteConfigRepo removes a config repo from GoCD
-func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *ConfigRepo, prefix string) error {
+func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) error {
 	if prefix != "" {
 		prefix = fmt.Sprintf("%s-", prefix)
 	}
@@ -228,7 +216,7 @@ func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *ConfigRepo, prefix string
 		return errors.Wrap(err, "error creating new http request")
 	}
 	req.Header = headers
-	resp, err := hc.Do(req)
+	resp, err := g.hc.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "error executing http request to delete a gocd config repo")
 	}
@@ -246,17 +234,19 @@ func (g *GoCD) DeleteConfigRepo(hc *http.Client, repo *ConfigRepo, prefix string
  */
 
 // New returns a GoCD Client
-func New(config map[string]string) *GoCD {
+func New(config map[string]string, hc *http.Client, logger log.Logger) *GoCD {
 	return &GoCD{
 		URL:      config["GoCDURL"] + "/go/api/admin/config_repos",
 		User:     config["GoCDUser"],
 		Password: config["GoCDPassword"],
+		hc:       hc,
+		logger:   logger,
 	}
 }
 
 // Reconcile ensures that repos that have been removed from Github, or are no longer found when
 // they had the topic to match removed, are also removed from GoCD
-func Reconcile(logger log.Logger, g *GoCD, prefix string, hc *http.Client, gocdRepos []ConfigRepo, ghRepos []*github.Repository) error {
+func Reconcile(g *GoCD, prefix string, gocdRepos []ConfigRepo, ghRepos []*github.Repository) error {
 
 	githubSeen := map[string]bool{}
 	for _, ghRepo := range ghRepos {
@@ -266,11 +256,11 @@ func Reconcile(logger log.Logger, g *GoCD, prefix string, hc *http.Client, gocdR
 	for _, gocdRepo := range gocdRepos {
 		if githubSeen[gocdRepo.Material.Attributes.Name] != true ||
 			!githubSeen[gocdRepo.Material.Attributes.Name] {
-			err := g.DeleteConfigRepo(hc, &gocdRepo, prefix)
+			err := g.DeleteConfigRepo(&gocdRepo, prefix)
 			if err != nil {
 				return errors.Wrap(err, "error deleting config repo "+gocdRepo.ID)
 			}
-			level.Info(logger).Log("msg", fmt.Sprintf("removed gocd config repo %s for %s (%s)", gocdRepo.ID, gocdRepo.Material.Attributes.Name, gocdRepo.Material.Attributes.URL))
+			level.Info(g.logger).Log("msg", fmt.Sprintf("removed gocd config repo %s for %s (%s)", gocdRepo.ID, gocdRepo.Material.Attributes.Name, gocdRepo.Material.Attributes.URL))
 		}
 	}
 

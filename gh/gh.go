@@ -2,7 +2,10 @@ package gh
 
 import (
 	"context"
+	"os"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -13,14 +16,16 @@ type GH struct {
 	APIKey     string
 	OrgMatch   string
 	TopicMatch string
+	logger     log.Logger
 }
 
 // New returns a configured GH struct
-func New(config map[string]string) *GH {
+func New(config map[string]string, logger log.Logger) *GH {
 	return &GH{
 		APIKey:     config["GithubAPIKey"],
 		OrgMatch:   config["GithubOrgMatch"],
 		TopicMatch: config["GithubTopicMatch"],
+		logger:     logger,
 	}
 }
 
@@ -76,6 +81,12 @@ func (gh *GH) Repos() ([]*github.Repository, error) {
 			}
 		}
 
+	}
+
+	if os.Getenv("LOG_LEVEL") == "DEBUG" {
+		for _, repo := range foundRepos {
+			level.Debug(gh.logger).Log("gh_repo", repo.FullName)
+		}
 	}
 
 	// return the repos we care about

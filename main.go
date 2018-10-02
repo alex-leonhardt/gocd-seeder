@@ -128,12 +128,12 @@ func main() {
 		logger = level.NewFilter(logger, level.AllowInfo())
 	}
 
-	myGithub := gh.New(githubConfig)
-	myGoCD := gocd.New(gocdConfig)
-
-	hc := &http.Client{
+	defaultHTTPClient := &http.Client{
 		Timeout: 10 * time.Second,
 	}
+
+	myGithub := gh.New(githubConfig, logger)
+	myGoCD := gocd.New(gocdConfig, defaultHTTPClient, logger)
 
 	doneChan := make(chan bool)
 	ticker := time.NewTicker(55 * time.Second)
@@ -165,7 +165,8 @@ func main() {
 
 				for _, repo := range foundGitHubRepos {
 
-					_, err := myGoCD.GetConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
+					_, err := myGoCD.GetConfigRepo(repo, githubConfig["GithubOrgMatch"])
+
 					if err != nil {
 
 						if err.Error() != "404 Not Found" {
@@ -173,9 +174,11 @@ func main() {
 						}
 
 						if err.Error() == "404 Not Found" {
-							newRepoConfig, err := myGoCD.CreateConfigRepo(hc, repo, githubConfig["GithubOrgMatch"])
+
+							newRepoConfig, err := myGoCD.CreateConfigRepo(repo, githubConfig["GithubOrgMatch"])
 
 							if err != nil {
+
 								level.Error(logger).Log("msg", errors.Wrap(err, "error creating config repo for "+*repo.FullName))
 								continue
 							}
@@ -190,12 +193,12 @@ func main() {
 				// -------------------------------------
 
 				// get all gocd config repos
-				foundGoCDConfigRepos, err := myGoCD.GetConfigRepos(hc)
+				foundGoCDConfigRepos, err := myGoCD.GetConfigRepos()
 				if err != nil {
 					level.Error(logger).Log("msg", errors.Wrap(err, "error retrieving all config repos from gocd"))
 				}
 
-				err = gocd.Reconcile(logger, myGoCD, githubConfig["GithubOrgMatch"], hc, foundGoCDConfigRepos, foundGitHubRepos)
+				err = gocd.Reconcile(myGoCD, githubConfig["GithubOrgMatch"], foundGoCDConfigRepos, foundGitHubRepos)
 				if err != nil {
 					level.Error(logger).Log("msg", errors.Wrap(err, "error reconciling gocd config repos with github repos"))
 				}
