@@ -50,15 +50,52 @@ func TestRepos(t *testing.T) {
 	hs := httptest.NewServer(
 		http.HandlerFunc(
 			func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, `{}`)
+				fmt.Fprintf(w, `[
+{
+	"id": "000",
+	"node_id": "???",
+	"name": "000",
+	"fullname": "000/000",
+	"description": "...no desc...",
+	"git_url": "git://..."
+}
+]`)
 			}))
 	defer hs.Close()
 
-	ghurl, err := url.ParseRequestURI(hs.URL)
+	ghurl, err := url.Parse(hs.URL + "/")
+	t.Log(*ghurl)
+
+	// c := &Client{client: httpClient, BaseURL: baseURL, UserAgent: userAgent, UploadURL: uploadURL}
 
 	ghc := &github.Client{
-		BaseURL: ghurl,
+		BaseURL:   ghurl,
+		UserAgent: "go-github",
+		UploadURL: ghurl,
 	}
+
+	// copy from github.go
+	ghc.Activity = &github.ActivityService{}
+	ghc.Admin = &github.AdminService{}
+	ghc.Apps = &github.AppsService{}
+	ghc.Authorizations = &github.AuthorizationsService{}
+	ghc.Checks = &github.ChecksService{}
+	ghc.Gists = &github.GistsService{}
+	ghc.Git = &github.GitService{}
+	ghc.Gitignores = &github.GitignoresService{}
+	ghc.Issues = &github.IssuesService{}
+	ghc.Licenses = &github.LicensesService{}
+	ghc.Marketplace = &github.MarketplaceService{Stubbed: true}
+	ghc.Migrations = &github.MigrationService{}
+	ghc.Organizations = &github.OrganizationsService{}
+	ghc.Projects = &github.ProjectsService{}
+	ghc.PullRequests = &github.PullRequestsService{}
+	ghc.Reactions = &github.ReactionsService{}
+	ghc.Repositories = &github.RepositoriesService{}
+	ghc.Search = &github.SearchService{}
+	ghc.Teams = &github.TeamsService{}
+	ghc.Users = &github.UsersService{}
+	// end
 	// ghc := github.NewClient(hc)
 	ctx := context.Background()
 
@@ -70,6 +107,8 @@ func TestRepos(t *testing.T) {
 		log.NewLogfmtLogger(os.Stderr),
 		ghc,
 	)
+
+	t.Log("ghc:", ghc, "c:", c, "ctx:", ctx)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, c)

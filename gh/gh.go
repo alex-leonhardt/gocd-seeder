@@ -2,6 +2,7 @@ package gh
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/go-kit/kit/log"
@@ -81,10 +82,10 @@ func (gh *GH) Repos() ([]*github.Repository, error) {
 	var err error
 	var resp *github.Response
 
-	// protect against panic when parser would fail
-	// if gh.client.Repositories.List == nil {
-	// 	return nil, errors.Wrap(fmt.Errorf("nil pointer"), "unable to parse response from github")
-	// }
+	// protect against nil panic
+	if gh.client.Repositories == nil {
+		return nil, errors.Wrap(fmt.Errorf("nil pointer"), "unable to parse response from github")
+	}
 
 	// get all repos
 	if gh.OrgMatch != "" {
