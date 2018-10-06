@@ -16,6 +16,8 @@ type GH struct {
 	APIKey     string
 	OrgMatch   string
 	TopicMatch string
+	client     *github.Client
+	ctx        context.Context
 	logger     log.Logger
 }
 
@@ -24,42 +26,65 @@ type Githubber interface {
 	Repos() ([]*github.Repository, error)
 }
 
+// NewClient returns a new initialized GH client, context and error if it failed
+func NewClient(ctx context.Context, config map[string]string) (*github.Client, context.Context, error) {
+
+	APIKey := config["GithubAPIKey"]
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	var err error
+
+	// cannot call github w/o api key
+	if APIKey == "" {
+		return nil, nil, errors.Wrap(errors.New("missing github api key"), "environment variable not set")
+	}
+
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: APIKey},
+	)
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+
+	return client, ctx, err
+
+}
+
 // New returns a configured GH struct
-func New(config map[string]string, logger log.Logger) Githubber {
+func New(ctx context.Context, config map[string]string, logger log.Logger, client *github.Client) (Githubber, error) {
+
+	var err error
+
+	if client == nil {
+		client, ctx, err = NewClient(ctx, config)
+		if err != nil {
+			return nil, errors.Wrap(err, "unable to create github client")
+		}
+	}
+
 	return &GH{
 		APIKey:     config["GithubAPIKey"],
 		OrgMatch:   config["GithubOrgMatch"],
 		TopicMatch: config["GithubTopicMatch"],
 		logger:     logger,
-	}
+		client:     client,
+		ctx:        ctx,
+	}, nil
 }
 
 // Repos implements Githubber Github repositories that we'd like to create GoCD config repos for
 func (gh *GH) Repos() ([]*github.Repository, error) {
 
-	var client *github.Client
 	var foundRepos []*github.Repository
 	var repos []*github.Repository
 	var err error
 
-	ctx := context.Background()
-
-	// cannot call github w/o api key
-	if gh.APIKey == "" {
-		return nil, errors.Wrap(errors.New("missing github api key"), "environment variable not set")
-	}
-
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: gh.APIKey},
-	)
-	tc := oauth2.NewClient(ctx, ts)
-	client = github.NewClient(tc)
-
 	// get all repos
 	if gh.OrgMatch != "" {
-		repos, _, err = client.Repositories.ListByOrg(ctx, gh.OrgMatch, nil)
+		repos, _, err = gh.client.Repositories.ListByOrg(gh.ctx, gh.OrgMatch, nil)
 	} else {
-		repos, _, err = client.Repositories.List(ctx, "", nil)
+		repos, _, err = gh.client.Repositories.List(gh.ctx, "", nil)
 	}
 
 	// return specific error when we hit the rate limit

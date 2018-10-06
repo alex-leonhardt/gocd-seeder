@@ -2,6 +2,7 @@ package gocd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -234,7 +235,7 @@ func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) error {
  */
 
 // New returns a GoCD Client
-func New(config map[string]string, hc *http.Client, logger log.Logger) ConfigRepoInterface {
+func New(ctx context.Context, config map[string]string, hc *http.Client, logger log.Logger) ConfigRepoInterface {
 	return &GoCD{
 		URL:      config["GoCDURL"] + "/go/api/admin/config_repos",
 		User:     config["GoCDUser"],

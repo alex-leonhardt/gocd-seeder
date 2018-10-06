@@ -132,8 +132,12 @@ func main() {
 		Timeout: 10 * time.Second,
 	}
 
-	myGithub := gh.New(githubConfig, logger)
-	myGoCD := gocd.New(gocdConfig, defaultHTTPClient, logger)
+	myGithub, err := gh.New(nil, githubConfig, logger, nil)
+	if err != nil {
+		level.Error(logger).Log("msg", err)
+	}
+
+	myGoCD := gocd.New(nil, gocdConfig, defaultHTTPClient, logger)
 
 	doneChan := make(chan bool)
 	ticker := time.NewTicker(55 * time.Second)
