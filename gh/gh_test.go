@@ -1,12 +1,17 @@
 package gh_test
 
 import (
-	_ "net/http/httptest"
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 
 	"github.com/alex-leonhardt/gocd-seeder/gh"
 	"github.com/go-kit/kit/log"
+	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,6 +45,39 @@ func TestNewWithEnv(t *testing.T) {
 
 }
 
-// TODO: need to break off creation of client + auth from actual retrieval of repos
-// TODO: change gh struct to contain github client, so we can replace it when we're testing ..
-// TODO: create fake github client,
+func TestRepos(t *testing.T) {
+
+	hs := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprintf(w, `{}`)
+			}))
+	defer hs.Close()
+
+	ghurl, err := url.ParseRequestURI(hs.URL)
+
+	ghc := &github.Client{
+		BaseURL: ghurl,
+	}
+	// ghc := github.NewClient(hc)
+	ctx := context.Background()
+
+	c, err := gh.New(
+		ctx,
+		map[string]string{
+			"GithubAPIKey": "aabbcc",
+		},
+		log.NewLogfmtLogger(os.Stderr),
+		ghc,
+	)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, c)
+
+	repos, err := c.Repos()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.IsType(t, []*github.Repository{}, repos)
+
+}

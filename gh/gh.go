@@ -79,12 +79,24 @@ func (gh *GH) Repos() ([]*github.Repository, error) {
 	var foundRepos []*github.Repository
 	var repos []*github.Repository
 	var err error
+	var resp *github.Response
+
+	// protect against panic when parser would fail
+	// if gh.client.Repositories.List == nil {
+	// 	return nil, errors.Wrap(fmt.Errorf("nil pointer"), "unable to parse response from github")
+	// }
 
 	// get all repos
 	if gh.OrgMatch != "" {
-		repos, _, err = gh.client.Repositories.ListByOrg(gh.ctx, gh.OrgMatch, nil)
+		repos, resp, err = gh.client.Repositories.ListByOrg(gh.ctx, gh.OrgMatch, nil)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to get repos (ListByOrg): %v", resp.Response.Status)
+		}
 	} else {
-		repos, _, err = gh.client.Repositories.List(gh.ctx, "", nil)
+		repos, resp, err = gh.client.Repositories.List(gh.ctx, "", nil)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to get repos (List): %v", resp.Response.Status)
+		}
 	}
 
 	// return specific error when we hit the rate limit
