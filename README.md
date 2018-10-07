@@ -49,6 +49,11 @@ docker run --rm -ti local/gocd-seeder:latest version
 docker run --rm -ti local/gocd-seeder:latest help
 ```
 
+#### Tests
+
+Some tests will require to have a valid Github token as it wasn't possible to use _httptest_.
+
+
 ## METRICS
 
 A metrics endpoint is running by default on port `:9090` and is reachable via `http://<IP|localhost>:9090/debug/vars`; metrics are provided via `expvar` - you can use things like
