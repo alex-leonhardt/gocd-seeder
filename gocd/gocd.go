@@ -187,6 +187,9 @@ func (g *GoCD) CreateConfigRepo(repo *github.Repository, prefix string) (ConfigR
 
 	if err != nil || resp.StatusCode > 399 {
 		if resp.StatusCode > 399 {
+			if err == nil {
+				err = fmt.Errorf("invalid response status")
+			}
 			msg, _ := ioutil.ReadAll(resp.Body)
 			return ConfigRepo{}, errors.Wrap(err, fmt.Sprintf("%v %v", resp.Status, string(msg)))
 		}
