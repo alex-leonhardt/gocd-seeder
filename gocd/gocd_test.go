@@ -17,8 +17,6 @@ import (
 func TestGetConfigReposEmpty(t *testing.T) {
 
 	ctx := context.Background()
-	hc := &http.Client{}
-
 	hs := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, `{"msg": "Hello World."}`)
@@ -31,7 +29,7 @@ func TestGetConfigReposEmpty(t *testing.T) {
 			"GoCDUser":     os.Getenv("GOCD_USER"),
 			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
 		},
-		hc,
+		hs.Client(),
 		log.NewNopLogger(),
 	)
 
@@ -45,8 +43,6 @@ func TestGetConfigReposEmpty(t *testing.T) {
 func TestGetConfigRepos(t *testing.T) {
 
 	ctx := context.Background()
-	hc := &http.Client{}
-
 	hs := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, `{
@@ -96,7 +92,7 @@ func TestGetConfigRepos(t *testing.T) {
 			"GoCDUser":     os.Getenv("GOCD_USER"),
 			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
 		},
-		hc,
+		hs.Client(),
 		log.NewNopLogger(),
 	)
 
@@ -109,14 +105,12 @@ func TestGetConfigRepos(t *testing.T) {
 
 func TestGetConfigRepoExists(t *testing.T) {
 	ctx := context.Background()
-	hc := &http.Client{}
-
 	hs := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, `{
 				"_links": {
 					"self": {
-						"href": "https://ci.example.com/go/api/admin/config_repos/repo1"
+						"href": "https://ci.example.com/go/api/admin/config_repos/repo-2"
 					},
 					"doc": {
 						"href": "https://api.gocd.org/#config-repos"
@@ -125,19 +119,22 @@ func TestGetConfigRepoExists(t *testing.T) {
 						"href": "https://ci.example.com/go/api/admin/config_repos/:id"
 					}
 				},
-				"id": "myprefix-repo1",
+				"id": "myprefix-one",
 				"plugin_id": "json.config.plugin",
 				"material": {
 					"type": "git",
 					"attributes": {
-						"url": "https://github.com/config-repo/gocd-json-config-example.git",
-						"name": "null",
+						"url": "https://github.com/config-repo/gocd-json-config-example2.git",
+						"name": null,
 						"branch": "master",
 						"auto_update": true
 					}
 				},
 				"configuration": [
-			
+					{
+						"key": "pattern",
+						"value": "*.myextension"
+					}
 				]
 			}`)
 		}))
@@ -150,13 +147,15 @@ func TestGetConfigRepoExists(t *testing.T) {
 			"GoCDUser":     os.Getenv("GOCD_USER"),
 			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
 		},
-		hc,
+		hs.Client(),
 		log.NewNopLogger(),
 	)
 
 	exampleGithubRepo := &github.Repository{
-		ID:   github.Int64(1234567890),
-		Name: github.String("null"),
+		ID:       github.Int64(1234567890),
+		Name:     github.String("one"),
+		CloneURL: github.String(""),
+		Topics:   []string{"ci-gocd"},
 	}
 
 	configRepo, err := testGoCD.GetConfigRepo(exampleGithubRepo, "myprefix")
@@ -167,8 +166,6 @@ func TestGetConfigRepoExists(t *testing.T) {
 
 func TestGetConfigRepoNotExists(t *testing.T) {
 	ctx := context.Background()
-	hc := &http.Client{}
-
 	hs := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(404)
@@ -182,7 +179,7 @@ func TestGetConfigRepoNotExists(t *testing.T) {
 			"GoCDUser":     os.Getenv("GOCD_USER"),
 			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
 		},
-		hc,
+		hs.Client(),
 		log.NewNopLogger(),
 	)
 
@@ -198,16 +195,152 @@ func TestGetConfigRepoNotExists(t *testing.T) {
 }
 
 func TestCreateConfigRepo(t *testing.T) {
-	t.Log("not implemented")
-	t.Fail()
+	ctx := context.Background()
+	hs := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, `{
+				"_links": {
+					"self": {
+						"href": "https://ci.example.com/go/api/admin/config_repos/repo-2"
+					},
+					"doc": {
+						"href": "https://api.gocd.org/#config-repos"
+					},
+					"find": {
+						"href": "https://ci.example.com/go/api/admin/config_repos/:id"
+					}
+				},
+				"id": "myprefix-one",
+				"plugin_id": "json.config.plugin",
+				"material": {
+					"type": "git",
+					"attributes": {
+						"url": "https://github.com/config-repo/gocd-json-config-example2.git",
+						"name": null,
+						"branch": "master",
+						"auto_update": true
+					}
+				},
+				"configuration": [
+					{
+						"key": "pattern",
+						"value": "*.myextension"
+					}
+				]
+			}`)
+		}))
+	defer hs.Close()
+
+	testGoCD := gocd.New(
+		ctx,
+		map[string]string{
+			"GoCDURL":      hs.URL,
+			"GoCDUser":     os.Getenv("GOCD_USER"),
+			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
+		},
+		hs.Client(),
+		log.NewNopLogger(),
+	)
+
+	exampleGithubRepo := &github.Repository{
+		ID:       github.Int64(1234567890),
+		Name:     github.String("one"),
+		CloneURL: github.String("http://localhost/clone/repo/one"),
+		Topics:   []string{"ci-gocd"},
+	}
+
+	configRepo, err := testGoCD.CreateConfigRepo(exampleGithubRepo, "myprefix")
+	assert.Nil(t, err)
+	assert.IsType(t, gocd.ConfigRepo{}, configRepo)
+	assert.Equal(t, "myprefix-one", configRepo.ID)
 }
 
-func TestDeleteConfigRepo(t *testing.T) {
-	t.Log("not implemented")
-	t.Fail()
+func TestDeleteConfigRepoError400(t *testing.T) {
+	ctx := context.Background()
+	hs := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(400)
+		}))
+	defer hs.Close()
+
+	testGoCD := gocd.New(
+		ctx,
+		map[string]string{
+			"GoCDURL":      hs.URL,
+			"GoCDUser":     os.Getenv("GOCD_USER"),
+			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
+		},
+		hs.Client(),
+		log.NewNopLogger(),
+	)
+
+	exampleConfigRepo := &gocd.ConfigRepo{
+		ID: "myprefix-one",
+	}
+
+	resp, err := testGoCD.DeleteConfigRepo(exampleConfigRepo, "myprefix")
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "invalid response status: 400 Bad Request")
+	assert.Equal(t, resp.StatusCode, 400)
 }
 
-func TestReconcile(t *testing.T) {
-	t.Log("not implemented")
-	t.Fail()
+func TestDeleteConfigRepoUnknownHost(t *testing.T) {
+	ctx := context.Background()
+	hs := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, `{"error": "error"}`)
+		}))
+	defer hs.Close()
+
+	testGoCD := gocd.New(
+		ctx,
+		map[string]string{
+			"GoCDURL":      "http://unknonwhost:9090/",
+			"GoCDUser":     os.Getenv("GOCD_USER"),
+			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
+		},
+		hs.Client(),
+		log.NewNopLogger(),
+	)
+
+	exampleConfigRepo := &gocd.ConfigRepo{
+		ID: "myprefix-one",
+	}
+
+	_, err := testGoCD.DeleteConfigRepo(exampleConfigRepo, "myprefix")
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "error executing http request to delete a gocd config repo: Delete http://unknonwhost:9090//go/api/admin/config_repos/myprefix-one: dial tcp: lookup unknonwhost: no such host")
+}
+
+func TestDeleteConfigRepoOK(t *testing.T) {
+	ctx := context.Background()
+	hs := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, `{
+				"message": "The config repo 'myprefix-one' was deleted successfully."
+			}`)
+		}))
+	defer hs.Close()
+
+	testGoCD := gocd.New(
+		ctx,
+		map[string]string{
+			"GoCDURL":      hs.URL,
+			"GoCDUser":     os.Getenv("GOCD_USER"),
+			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
+		},
+		hs.Client(),
+		log.NewNopLogger(),
+	)
+
+	exampleConfigRepo := &gocd.ConfigRepo{
+		ID: "myprefix-one",
+	}
+
+	resp, err := testGoCD.DeleteConfigRepo(exampleConfigRepo, "myprefix")
+	assert.Nil(t, err)
+	if resp == nil {
+		t.Fatal("FATAL >>> response is nil")
+	}
+	assert.Equal(t, 200, resp.StatusCode)
 }

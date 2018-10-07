@@ -61,7 +61,7 @@ type ConfigRepoInterface interface {
 	GetConfigRepos() ([]ConfigRepo, error)
 	GetConfigRepo(*github.Repository, string) (ConfigRepo, error)
 	CreateConfigRepo(*github.Repository, string) (ConfigRepo, error)
-	DeleteConfigRepo(*ConfigRepo, string) error
+	DeleteConfigRepo(*ConfigRepo, string) (*http.Response, error)
 }
 
 /*
@@ -202,7 +202,7 @@ func (g *GoCD) CreateConfigRepo(repo *github.Repository, prefix string) (ConfigR
 }
 
 // DeleteConfigRepo removes a config repo from GoCD
-func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) error {
+func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) (*http.Response, error) {
 	if prefix != "" {
 		prefix = fmt.Sprintf("%s-", prefix)
 	}
@@ -214,18 +214,18 @@ func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) error {
 
 	req, err := http.NewRequest(http.MethodDelete, g.URL+"/"+repo.ID, nil)
 	if err != nil {
-		return errors.Wrap(err, "error creating new http request")
+		return nil, errors.Wrap(err, "error creating new http request")
 	}
 	req.Header = headers
 	resp, err := g.hc.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "error executing http request to delete a gocd config repo")
+		return resp, errors.Wrap(err, "error executing http request to delete a gocd config repo")
 	}
 	if resp.StatusCode > 399 {
-		return errors.Wrap(err, resp.Status)
+		return resp, errors.Wrap(fmt.Errorf(resp.Status), "invalid response status")
 	}
 
-	return nil
+	return resp, nil
 }
 
 /*
@@ -257,7 +257,7 @@ func Reconcile(g ConfigRepoInterface, logger log.Logger, prefix string, gocdRepo
 	for _, gocdRepo := range gocdRepos {
 		if githubSeen[gocdRepo.Material.Attributes.Name] != true ||
 			!githubSeen[gocdRepo.Material.Attributes.Name] {
-			err := g.DeleteConfigRepo(&gocdRepo, prefix)
+			_, err := g.DeleteConfigRepo(&gocdRepo, prefix)
 			if err != nil {
 				return errors.Wrap(err, "error deleting config repo "+gocdRepo.ID)
 			}
