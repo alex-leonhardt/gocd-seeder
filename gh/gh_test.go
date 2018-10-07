@@ -2,10 +2,6 @@ package gh_test
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
 	"testing"
 
@@ -47,68 +43,23 @@ func TestNewWithEnv(t *testing.T) {
 
 func TestRepos(t *testing.T) {
 
-	hs := httptest.NewServer(
-		http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, `[
-{
-	"id": "000",
-	"node_id": "???",
-	"name": "000",
-	"fullname": "000/000",
-	"description": "...no desc...",
-	"git_url": "git://..."
-}
-]`)
-			}))
-	defer hs.Close()
-
-	ghurl, err := url.Parse(hs.URL + "/")
-	t.Log(*ghurl)
-
-	// c := &Client{client: httpClient, BaseURL: baseURL, UserAgent: userAgent, UploadURL: uploadURL}
-
-	ghc := &github.Client{
-		BaseURL:   ghurl,
-		UserAgent: "go-github",
-		UploadURL: ghurl,
+	if os.Getenv("GITHUB_API_KEY") == "" {
+		t.Log("skipping... no GITHUB_API_KEY env var specified")
+		return
 	}
 
-	// copy from github.go
-	ghc.Activity = &github.ActivityService{}
-	ghc.Admin = &github.AdminService{}
-	ghc.Apps = &github.AppsService{}
-	ghc.Authorizations = &github.AuthorizationsService{}
-	ghc.Checks = &github.ChecksService{}
-	ghc.Gists = &github.GistsService{}
-	ghc.Git = &github.GitService{}
-	ghc.Gitignores = &github.GitignoresService{}
-	ghc.Issues = &github.IssuesService{}
-	ghc.Licenses = &github.LicensesService{}
-	ghc.Marketplace = &github.MarketplaceService{Stubbed: true}
-	ghc.Migrations = &github.MigrationService{}
-	ghc.Organizations = &github.OrganizationsService{}
-	ghc.Projects = &github.ProjectsService{}
-	ghc.PullRequests = &github.PullRequestsService{}
-	ghc.Reactions = &github.ReactionsService{}
-	ghc.Repositories = &github.RepositoriesService{}
-	ghc.Search = &github.SearchService{}
-	ghc.Teams = &github.TeamsService{}
-	ghc.Users = &github.UsersService{}
-	// end
-	// ghc := github.NewClient(hc)
 	ctx := context.Background()
 
 	c, err := gh.New(
 		ctx,
 		map[string]string{
-			"GithubAPIKey": "aabbcc",
+			"GithubAPIKey":     os.Getenv("GITHUB_API_KEY"),
+			"GithubOrgMatch":   os.Getenv("GITHUB_ORG"),
+			"GithubTopicMatch": "ci-gocd",
 		},
 		log.NewLogfmtLogger(os.Stderr),
-		ghc,
+		nil,
 	)
-
-	t.Log("ghc:", ghc, "c:", c, "ctx:", ctx)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, c)
