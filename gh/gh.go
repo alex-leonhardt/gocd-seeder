@@ -27,7 +27,7 @@ type Githubber interface {
 	Repos() ([]*github.Repository, error)
 }
 
-// NewClient returns a new initialized GH client, context and error if it failed
+// NewClient returns a new initialized GH client, context and error
 func NewClient(ctx context.Context, config map[string]string) (*github.Client, context.Context, error) {
 
 	APIKey := config["GithubAPIKey"]
@@ -52,7 +52,7 @@ func NewClient(ctx context.Context, config map[string]string) (*github.Client, c
 
 }
 
-// New returns a configured GH struct
+// New returns a configured GH struct, it uses NewClient if no *github.Client was passed
 func New(ctx context.Context, config map[string]string, logger log.Logger, client *github.Client) (Githubber, error) {
 
 	var err error
