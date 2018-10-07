@@ -59,8 +59,8 @@ LOG_LEVEL       (e.g.: DEBUG)
 	os.Exit(0)
 }
 
-// helper func to return a default when os.Getenv fails to find a value
-func getenv(key, fallback string) string {
+// Getenv returns a default when os.Getenv fails to find a value
+func Getenv(key, fallback string) string {
 	value := os.Getenv(key)
 	if len(value) == 0 {
 		return fallback
@@ -70,13 +70,13 @@ func getenv(key, fallback string) string {
 
 // ------------------------------------------------
 
-// provide goroutines stats for expvar
-func goroutines() interface{} {
+// Goroutines provide goroutines stats for expvar
+func Goroutines() interface{} {
 	return runtime.NumGoroutine()
 }
 
-// provide uptime in seconds for expvar
-func uptime() interface{} {
+// Uptime provide uptime in seconds for expvar
+func Uptime() interface{} {
 	uptime := time.Since(startTime).Seconds()
 	return int64(uptime)
 }
@@ -99,18 +99,18 @@ func main() {
 	githubConfig := map[string]string{
 		"GithubAPIKey":     os.Getenv("GITHUB_API_KEY"),
 		"GithubOrgMatch":   os.Getenv("GITHUB_ORG"),
-		"GithubTopicMatch": getenv("GITHUB_TOPIC", "ci-gocd"),
+		"GithubTopicMatch": Getenv("GITHUB_TOPIC", "ci-gocd"),
 	}
 
 	gocdConfig := map[string]string{
-		"GoCDURL":      getenv("GOCD_URL", "http://localhost:8081"),
+		"GoCDURL":      Getenv("GOCD_URL", "http://localhost:8081"),
 		"GoCDUser":     os.Getenv("GOCD_USER"),
 		"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
 	}
 
 	httpConfig := map[string]string{
-		"StatsIP":   getenv("HTTP_STATS_IP", ""),
-		"StatsPort": getenv("HTTP_STATS_PORT", "9090"),
+		"StatsIP":   Getenv("HTTP_STATS_IP", ""),
+		"StatsPort": Getenv("HTTP_STATS_PORT", "9090"),
 	}
 
 	// ------------------------------------------------
@@ -141,8 +141,8 @@ func main() {
 
 	// ------------------------------------------------
 
-	expvar.Publish("Uptime", expvar.Func(uptime))
-	expvar.Publish("Goroutines", expvar.Func(goroutines))
+	expvar.Publish("Uptime", expvar.Func(Uptime))
+	expvar.Publish("Goroutines", expvar.Func(Goroutines))
 
 	go func() {
 		level.Info(logger).Log("msg", http.ListenAndServe(fmt.Sprintf("%s:%s", httpConfig["StatsIP"], httpConfig["StatsPort"]), nil))
