@@ -3,25 +3,7 @@
 # GOCD-SEEDER
 A GoCD-Seeder scans a GitHub org for repositories that contain a pre-specified "topic" (default: ci-gocd), if a repo is found, it will create a GoCD config repo, which will make GoCD poll the repository for the file "ci.gocd.yaml" and create (a) new pipeline/s basaed on the config in that file.
 
-## WIP
-
-- clean up
-  - write tests
-  - make use of the interfaces etc. etc.
-  - write logging and metric decorators and wrap func calls where appropriate
-
-## NTHs
-_(nice to haves)_
-
-- metric (counter) of repos created, deleted
-
-## BUILD
-
-```
-go build -ldflags "-X main.versionString=`git rev-list --max-count=1 --branches master --abbrev-commit`"
-```
-
-### Docker
+## DOCKER
 
 #### Docker Hub
 
@@ -35,7 +17,8 @@ Or alternatively, by tags:
 docker pull alexleonhardt/gocd-seeder:<tag>
 ```
 
-#### Build 
+#### Build own
+
 Multi-stage docker build, it's using alpine as the base OS so we can get a shell if we needed to debug the app for some reason.
 
 ```
@@ -49,9 +32,33 @@ docker run --rm -ti local/gocd-seeder:latest version
 docker run --rm -ti local/gocd-seeder:latest help
 ```
 
-#### Tests
+## NTHs
+
+_(nice to haves)_
+
+- metric (counter) of repos created, deleted
+
+## BUILD
+
+```
+go build -ldflags "-X main.versionString=`git rev-list --max-count=1 --branches master --abbrev-commit`"
+```
+
+## TEST
 
 Some tests will require to have a valid Github token as it wasn't possible to use _httptest_.
+
+To run the tests: 
+
+```
+go test ./... -cover
+```
+
+or with some more detail 
+
+```
+go test -v ./... -cover
+```
 
 
 ## METRICS
@@ -83,3 +90,8 @@ HTTP_STATS_IP=""
 ```
 
 which will make the endpoint available on all interfaces, on port 9090
+
+## CONTRIBUTE
+
+Contributions through PRs are more than welcome, please also update the necessary tests as part of the submitted changes.
+
