@@ -3,7 +3,6 @@ package gh
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -77,7 +76,8 @@ func New(ctx context.Context, config map[string]string, logger log.Logger, clien
 // Repos implements Githubber Github repositories that we'd like to create GoCD config repos for
 func (gh *GH) Repos() ([]*github.Repository, error) {
 
-	var foundRepos []*github.Repository
+	// make sure foundRepos is not nil
+	var foundRepos = make([]*github.Repository, 0)
 	var repos []*github.Repository
 	var err error
 	var resp *github.Response
@@ -120,16 +120,11 @@ func (gh *GH) Repos() ([]*github.Repository, error) {
 			for _, topic := range rr.Topics {
 				if topic == gh.TopicMatch {
 					foundRepos = append(foundRepos, rr)
+					level.Debug(gh.logger).Log("msg", "found repo: "+*rr.FullName)
 				}
 			}
 		}
 
-	}
-
-	if os.Getenv("LOG_LEVEL") == "DEBUG" {
-		for _, repo := range foundRepos {
-			level.Debug(gh.logger).Log("gh_repo", repo.FullName)
-		}
 	}
 
 	// return the repos we care about

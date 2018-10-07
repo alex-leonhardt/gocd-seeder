@@ -206,6 +206,7 @@ func main() {
 
 			}
 
+			level.Debug(logger).Log("msg", fmt.Sprintf("found repo count: %v", len(foundGitHubRepos)))
 			// -------------------------------------
 
 			// use a ticker to continue, and a done channel to break out, it's neater
