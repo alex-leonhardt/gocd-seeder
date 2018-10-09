@@ -12,11 +12,6 @@ You can now use the below command to just pull down the latest version (master)
 docker pull alexleonhardt/gocd-seeder:latest
 ```
 
-Or alternatively, by tags:
-```
-docker pull alexleonhardt/gocd-seeder:<tag>
-```
-
 #### Build own
 
 Multi-stage docker build, it's using alpine as the base OS so we can get a shell if we needed to debug the app for some reason.
