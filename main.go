@@ -98,8 +98,8 @@ func main() {
 	// ------------------------------------------------
 
 	githubConfig := map[string]string{
-		"GithubAPIKey":     os.Getenv("GITHUB_API_KEY"),
-		"GithubOrgMatch":   os.Getenv("GITHUB_ORG"),
+		"GithubAPIKey":     Getenv("GITHUB_API_KEY", ""),
+		"GithubOrgMatch":   Getenv("GITHUB_ORG", "ORG_DOES_NOT_EXIST_MUST_SET_VALUE_FROM_ENV"),
 		"GithubTopicMatch": Getenv("GITHUB_TOPIC", "ci-gocd"),
 	}
 
