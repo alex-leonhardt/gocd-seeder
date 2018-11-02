@@ -82,6 +82,12 @@ func (g *GoCD) GetConfigRepos() ([]ConfigRepo, error) {
 		return nil, errors.Wrap(err, "error creating http request")
 	}
 	req.Header = headers
+
+	// set basic user/pass for auth to GoCD
+	if g.User != "" && g.Password != "" {
+		req.SetBasicAuth(g.User, g.Password)
+	}
+
 	resp, err := g.hc.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "error doing http request")
@@ -121,6 +127,12 @@ func (g *GoCD) GetConfigRepo(repo *github.Repository, prefix string) (ConfigRepo
 		return ConfigRepo{}, errors.Wrap(err, "error creating request to retrieve gocd config repo")
 	}
 	req.Header = headers
+
+	// set basic user/pass for auth to GoCD
+	if g.User != "" && g.Password != "" {
+		req.SetBasicAuth(g.User, g.Password)
+	}
+
 	resp, err := g.hc.Do(req)
 	if resp == nil {
 		return ConfigRepo{}, errors.Wrap(err, "error retrieving a response from gocd")
@@ -220,6 +232,12 @@ func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) (*http.Response
 		return nil, errors.Wrap(err, "error creating new http request")
 	}
 	req.Header = headers
+
+	// set basic user/pass for auth to GoCD
+	if g.User != "" && g.Password != "" {
+		req.SetBasicAuth(g.User, g.Password)
+	}
+
 	resp, err := g.hc.Do(req)
 	if err != nil {
 		return resp, errors.Wrap(err, "error executing http request to delete a gocd config repo")
