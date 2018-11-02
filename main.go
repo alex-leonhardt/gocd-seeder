@@ -105,8 +105,8 @@ func main() {
 
 	gocdConfig := map[string]string{
 		"GoCDURL":      Getenv("GOCD_URL", "http://localhost:8081"),
-		"GoCDUser":     os.Getenv("GOCD_USER"),
-		"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
+		"GoCDUser":     Getenv("GOCD_USER", ""),
+		"GoCDPassword": Getenv("GOCD_PASSWORD", ""),
 	}
 
 	httpConfig := map[string]string{
