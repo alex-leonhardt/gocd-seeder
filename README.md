@@ -7,24 +7,29 @@ A GoCD-Seeder scans a GitHub org for repositories that contain a pre-specified "
 
 #### Docker Hub
 
-You can now use the below command to just pull down the latest version (master)
+You can now use the below command to just pull down the latest `tag`.
+
+_NOTE: as of 3/11/18 -- this was previously `master` (so `:latest` will correspond to `f8c3fafed4555ee25053f9fdc0ae368d0657e6e4`) but I believe it's better to use tags so it's not a moving target when you rely on a specific version_
+
+
 ```
-docker pull alexleonhardt/gocd-seeder:latest
+docker pull alexleonhardt/gocd-seeder:<tag>
 ```
+`tag` will correspond to tags in github repo (https://github.com/alex-leonhardt/gocd-seeder/releases)
 
 #### Build own
 
 Multi-stage docker build, it's using alpine as the base OS so we can get a shell if we needed to debug the app for some reason.
 
 ```
-docker build --no-cache -t local/gocd-seeder:latest .
+docker build --no-cache -t local/gocd-seeder:<tag> .
 ```
 
 To check version and help you can use: 
 
 ```
-docker run --rm -ti local/gocd-seeder:latest version
-docker run --rm -ti local/gocd-seeder:latest help
+docker run --rm -ti local/gocd-seeder:<tag> version
+docker run --rm -ti local/gocd-seeder:<tag> help
 ```
 
 ## NTHs
