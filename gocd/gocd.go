@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 
@@ -70,22 +71,41 @@ type ConfigRepoInterface interface {
 
  */
 
-// GetConfigRepos populates the GoCD struct with config repos
-func (g *GoCD) GetConfigRepos() ([]ConfigRepo, error) {
-	headers := http.Header{
-		"Accept":       []string{"application/vnd.go.cd.v1+json"},
-		"Content-Type": []string{"application/json"},
+// NewRequest creates a new request to the GoCD server and returns it, it populates it with the necessary headers and auth creds
+func (g *GoCD) NewRequest(verb string, path string, headers http.Header, body io.Reader) (*http.Request, error) {
+
+	if headers == nil {
+		headers = http.Header{
+			"Accept":       []string{"application/vnd.go.cd.v1+json"},
+			"Content-Type": []string{"application/json"},
+		}
 	}
 
-	req, err := http.NewRequest("GET", g.URL, nil)
+	if path != "" {
+		path = g.URL + "/" + path
+	} else {
+		path = g.URL
+	}
+
+	req, err := http.NewRequest(verb, path, body)
+
+	if g.User != "" && g.Password != "" {
+		req.SetBasicAuth(g.User, g.Password)
+	}
+
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating http request")
 	}
-	req.Header = headers
 
-	// set basic user/pass for auth to GoCD
-	if g.User != "" && g.Password != "" {
-		req.SetBasicAuth(g.User, g.Password)
+	return req, nil
+}
+
+// GetConfigRepos populates the GoCD struct with config repos
+func (g *GoCD) GetConfigRepos() ([]ConfigRepo, error) {
+
+	req, err := g.NewRequest(http.MethodGet, "", nil, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating http request for GetConfigRepos")
 	}
 
 	resp, err := g.hc.Do(req)
@@ -116,21 +136,11 @@ func (g *GoCD) GetConfigRepo(repo *github.Repository, prefix string) (ConfigRepo
 		prefix = fmt.Sprintf("%s-", prefix)
 	}
 
-	headers := http.Header{
-		"Accept":       []string{"application/vnd.go.cd.v1+json"},
-		"Content-Type": []string{"application/json"},
-	}
-
 	id := fmt.Sprintf("%s%s", prefix, *repo.Name)
-	req, err := http.NewRequest(http.MethodGet, g.URL+"/"+id, nil)
+
+	req, err := g.NewRequest("GET", id, nil, nil)
 	if err != nil {
 		return ConfigRepo{}, errors.Wrap(err, "error creating request to retrieve gocd config repo")
-	}
-	req.Header = headers
-
-	// set basic user/pass for auth to GoCD
-	if g.User != "" && g.Password != "" {
-		req.SetBasicAuth(g.User, g.Password)
 	}
 
 	resp, err := g.hc.Do(req)
@@ -158,11 +168,6 @@ func (g *GoCD) CreateConfigRepo(repo *github.Repository, prefix string) (ConfigR
 		prefix = fmt.Sprintf("%s-", prefix)
 	}
 
-	headers := http.Header{
-		"Accept":       []string{"application/vnd.go.cd.v1+json"},
-		"Content-Type": []string{"application/json"},
-	}
-
 	newRepoConfig := ConfigRepo{
 		ID:       fmt.Sprintf("%s%s", prefix, *repo.Name),
 		PluginID: "yaml.config.plugin",
@@ -182,19 +187,11 @@ func (g *GoCD) CreateConfigRepo(repo *github.Repository, prefix string) (ConfigR
 		return ConfigRepo{}, errors.Wrap(err, "error marshalling json to create gocd config repo")
 	}
 
-	req, err := http.NewRequest(http.MethodPost, g.URL, bytes.NewBuffer(postBody))
-	req.Header = headers
-
-	// set basic user/pass for auth to GoCD
-	if g.User != "" && g.Password != "" {
-		req.SetBasicAuth(g.User, g.Password)
-	}
-
+	req, err := g.NewRequest("POST", "", nil, bytes.NewBuffer(postBody))
 	if err != nil {
 		return ConfigRepo{}, errors.Wrap(err, "error creating http post request")
 	}
 
-	req.Header = headers
 	resp, err := g.hc.Do(req)
 
 	if err != nil || resp.StatusCode > 399 {
@@ -222,20 +219,9 @@ func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) (*http.Response
 		prefix = fmt.Sprintf("%s-", prefix)
 	}
 
-	headers := http.Header{
-		"Accept":       []string{"application/vnd.go.cd.v1+json"},
-		"Content-Type": []string{"application/json"},
-	}
-
-	req, err := http.NewRequest(http.MethodDelete, g.URL+"/"+repo.ID, nil)
+	req, err := g.NewRequest("DELETE", repo.ID, nil, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating new http request")
-	}
-	req.Header = headers
-
-	// set basic user/pass for auth to GoCD
-	if g.User != "" && g.Password != "" {
-		req.SetBasicAuth(g.User, g.Password)
 	}
 
 	resp, err := g.hc.Do(req)
