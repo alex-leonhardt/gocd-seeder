@@ -15,4 +15,12 @@ push: login
 run: build
 	docker run --rm ${DOCKER_USERNAME}/gocd-seeder ${CMD}
 
-.PHONY: login build push run
+# --------------------
+
+test:
+	go test -v ./...
+
+testcover:
+	go test -v ./... -cover
+
+.PHONY: login build push run test testcover

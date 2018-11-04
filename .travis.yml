@@ -28,10 +28,14 @@ env:
 jobs:
   include:
   # --------------------------------------------
+  - stage: test
+    script: 
+      - make test
+  # --------------------------------------------
   - stage: docker build
     script:
-    - make build
-    - make run CMD=version
+      - make build
+      - make run CMD=version
   # --------------------------------------------
   - stage: docker push
     deploy:
