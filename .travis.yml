@@ -32,6 +32,8 @@ jobs:
       - make test
   # --------------------------------------------
   - stage: build+push:latest
+    if:
+      tag IS NOT present
     before_deploy:
       - make build TAG=latest
       - make run TAG=latest CMD=version
