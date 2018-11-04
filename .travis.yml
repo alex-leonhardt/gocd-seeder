@@ -17,9 +17,6 @@ sudo: required
 services:
 - docker
 
-pre_install:
-- go test -v ./...
-
 env:
   global:
     - secure: Ck354xSy5HCOwumR0YeqyT2y/w2ID8I/P54SO2YstuAkrKh3b487cXiqqzfmL9VuMvFlRosxv99cCGj7pG+0pjBm1dLiYSryq5/DabqBpdIgbq4QRn/gScy9od98cJ6qeTVjctWFe5MK7xlWxKSsVuh1Y/HVdXmYjZa/RFXrJ7pgIBpgzF+IXL2VwPhamA3XOAxXNdel/XKPqnkY1PMsIrbmwqL7Zd+7mzrkar5+vap2BgVhnuwyvORh7z9iwUTYL4FPsXZ/FfLEH4vFZxThPZJBLZ12R9KJtrdpXCKVGGxbXuFDEYi0sSwbGoPF7ezjjyhKwdGwM2B15IzesiVy8Sy10VWyVY47mrTiylr7r5cBhEpFAM0o6mW/klAwK4Mg9oEJ3bIUUV5DUkKPOBxe6xSKJhSwpcitbfGQVGVF3HN6SNNFbkigpnw0Xm0RDHeTqLaXcIXvCPBOoioi0rcGM7Lkx1df8ptdX5QQtbt2dPLoc8Ji0zBtKYwIPMqCwDAnMPGScYbAl1mJVBEAMMRAlNEQJjDWA2HpDlEQurGJC7s3POngLBKDDOq87liDEZ+z6+FeDvezDtpbugt5w7BwEHBRYCtwNrVNZpe8fTc9ffPkJYnj/A1uiOPSEShG6bynana3LgcViXJCuOpljAuTHCcHWwiGmk8aXGbGXdlKJgo= # user
@@ -29,15 +26,17 @@ jobs:
   include:
   # --------------------------------------------
   - stage: test
+    skip_cleanup: true
     script: 
       - make test
   # --------------------------------------------
-  - stage: docker build
+  - stage: build
+    skip_cleanup: true
     script:
       - make build
       - make run CMD=version
   # --------------------------------------------
-  - stage: docker push
+  - stage: push:latest
     deploy:
       skip_cleanup: true
       provider: script
@@ -45,7 +44,7 @@ jobs:
       on:
         branch: master
   # --------------------------------------------
-  - stage: docker push
+  - stage: push:tag
     deploy:
       skip_cleanup: true
       provider: script
