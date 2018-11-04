@@ -2,10 +2,10 @@ language: go
 go:
   - 1.11.x
 
-branches:
-  only:
-  - master
-  - /^[0-9.?-a-zA-Z]+/
+# branches:
+#   only:
+#   - master
+#   - /^[0-9.?-a-zA-Z]+/
 
 addons:
   apt:
