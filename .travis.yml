@@ -50,5 +50,7 @@ jobs:
     deploy:
       provider: script
       script: make push TAG=$TRAVIS_TAG
+    on:
+      tags: true
 
   # --------------------------------------------
