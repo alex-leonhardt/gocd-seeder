@@ -32,20 +32,22 @@ jobs:
       - make test
   # --------------------------------------------
   - stage: build+push:latest
-    skip_cleanup: true
-    script:
+    before_deploy:
       - make build TAG=latest
       - make run TAG=latest CMD=version
-      - make push TAG=latest
+    deploy:
+      provider: script
+      script: make push TAG=latest
     on:
       branch: master
   # --------------------------------------------
   - stage: build+push:tag
-    skip_cleanup: true
-    script:
+    before_deploy:
       - make build TAG=$TRAVIS_TAG
       - make run TAG=$TRAVIS_TAG CMD=version
-      - make push TAG=$TRAVIS_TAG
+    deploy:
+      provider: script
+      script: make push TAG=$TRAVIS_TAG
     on:
       tags: true
   # --------------------------------------------
