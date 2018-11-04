@@ -20,6 +20,7 @@ env:
     - secure: QS0nBje5L3zAMBIUIcnZxQ/YZt93PLxoGiFhZyXOYuqyBsFRL55M2M3ErOOMz5/IS371zXN7OJIlvUjUj1k/XGJAYt/euivRLAn5BJND7RE1SiCOXpaDxCNjE6vr9pP3hG4T1qpadiiwiR+7D/EqKX1A6NO1znVVD8j+IpeEbVk90i5bhv85aermgR193JO4P7Q89NXmAKPgPji1ZhdqEkaGSuYd3tG8DPIvHetVoIvB620D3LA1xVYlkkDRHd/u9oT5JzKCmkUDiGwJeWoYFYdcXhf92hSxyihlUItWXd1kmEuaiBIe7u6f6UkFIDSadMBsM34eZ9ZSeclS5rNXC5Zup6P7qbzjZpoXQIwShQhuUh/3NN/5cXVMGPJ4E24qaXyxb1aqd2C8LBy/VoGyZe+wqoR9EvvEILtdsV/idHa0Aw9YrR+kiowmpUTFINrRG4M1mrYB7ZH67i+kX51LEyOGe9s9pQN4NWEoAyspZCJ7V2zZ5UyhEN6T4+1imdj4h0Rq1LJ62T0pudP7nwiaiKP3AV4/CQnfMjr4sHu0CcE2UndzbARRFk7U6OHhmsMm1zZ+aaS7ZGQLt5hHVpDpoQiZAo6yxLPfq6izBG3Tzf61fl9JB6lKYUHgeppSWkLrIsSG0agYXU7xPV6KtLqWd37UO+329hAXKk36J1nci7I=
 
 script:
-- env
-- docker build -t alexleonhardt/gocd-seeder .
-- docker run --rm alexleonhardt/gocd-seeder version
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker build -t alexleonhardt/gocd-seeder:latest .
+  - docker run --rm alexleonhardt/gocd-seeder version
+  - docker push $DOCKER_USERNAME/gocd-seeder:latest
