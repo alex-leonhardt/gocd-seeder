@@ -1,21 +1,24 @@
 language: go
-go: 
-  - 1.11.x
-
+go:
+- 1.11.x
 branches:
   only:
   - master
-
 addons:
   apt:
     packages:
-      - docker-ce
-
+    - docker-ce
 sudo: required
-
 services:
-  - docker
+- docker
+pre_install:
+- go test -v ./...
+env:
+  global:
+    - secure: Ck354xSy5HCOwumR0YeqyT2y/w2ID8I/P54SO2YstuAkrKh3b487cXiqqzfmL9VuMvFlRosxv99cCGj7pG+0pjBm1dLiYSryq5/DabqBpdIgbq4QRn/gScy9od98cJ6qeTVjctWFe5MK7xlWxKSsVuh1Y/HVdXmYjZa/RFXrJ7pgIBpgzF+IXL2VwPhamA3XOAxXNdel/XKPqnkY1PMsIrbmwqL7Zd+7mzrkar5+vap2BgVhnuwyvORh7z9iwUTYL4FPsXZ/FfLEH4vFZxThPZJBLZ12R9KJtrdpXCKVGGxbXuFDEYi0sSwbGoPF7ezjjyhKwdGwM2B15IzesiVy8Sy10VWyVY47mrTiylr7r5cBhEpFAM0o6mW/klAwK4Mg9oEJ3bIUUV5DUkKPOBxe6xSKJhSwpcitbfGQVGVF3HN6SNNFbkigpnw0Xm0RDHeTqLaXcIXvCPBOoioi0rcGM7Lkx1df8ptdX5QQtbt2dPLoc8Ji0zBtKYwIPMqCwDAnMPGScYbAl1mJVBEAMMRAlNEQJjDWA2HpDlEQurGJC7s3POngLBKDDOq87liDEZ+z6+FeDvezDtpbugt5w7BwEHBRYCtwNrVNZpe8fTc9ffPkJYnj/A1uiOPSEShG6bynana3LgcViXJCuOpljAuTHCcHWwiGmk8aXGbGXdlKJgo=
+    - secure: U4pz/ik0qD9EHOGsvzkoPVdC1RxQFrDdSXapvyx4oPvAtsOKw7R4Fjmmov9UWr1g6cHrWphaatHoLnVPXUITByRqJAPrxzeEpJdK8ZhrR3HhJW4DG6g8nOWgNvJy4DkGgJ3VpSpbcbY0276sMpW+UGmQCg7UtGo56g3hOlsq81nktYK2oDb30VeKEYM1w05Rf5cIDFJcvcl2fPNaf1CKyfbg1kaIgASW3p72cweqxATg1lFFnRo54RDa9sBx9156CvXZYW3WsfHlFqBS3fnAjh5Zj8rH2NCiHENeFl+sjaRutdnvH+IsihbcdmuS1JhvgVFKo7kOwj7N1aKCIjS/jtEZOcbdQFGbu8x+krDjUHJVa1bzTMvvJEag3ZKC/QNWlB9vpmQV4UZ4rQT47i/ZtGaj3Nj1TZKWRV7W69iV8iv8SUG5ejLnLc56cGKOAnA/Z7u7y+AObP8Vb1yygMPnls2As6EWUFenbWOb+1tn3odEdMajrLw7Ie/Di5G44UbPKnBx41qnMgAeF5pXuzd4VJDDME/f3pPWumWo7VixdvcqZdBYoc4vwoYD/H6A5dkgkLOVim5UBL/RLqrS3NSg5qsxBkRG+Ras24O9EJ2lD7RJSIkHtVj23BC5DQUFlpGdBxfhUtXS/cG6jynO2U7Ai+786KVQxVKdwjXQStk/2q8=
 
 script:
-  - docker build -t alexleonhardt/gocd-seeder .
-  - docker run --rm alexleonhardt/gocd-seeder version
+- env
+- docker build -t alexleonhardt/gocd-seeder .
+- docker run --rm alexleonhardt/gocd-seeder version
