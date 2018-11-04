@@ -13,7 +13,7 @@ push: login
 	docker push ${DOCKER_USERNAME}/${APP}:${TAG}
 
 run: build
-	docker run --rm ${DOCKER_USERNAME}/gocd-seeder ${CMD}
+	docker run --rm ${DOCKER_USERNAME}/gocd-seeder:${TAG} ${CMD}
 
 # --------------------
 

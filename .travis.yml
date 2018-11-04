@@ -26,35 +26,26 @@ env:
 jobs:
   include:
   # --------------------------------------------
-  - stage: login
-    skip_cleanup: true
-    script: 
-      - make login
-  # --------------------------------------------
   - stage: test
     skip_cleanup: true
     script: 
       - make test
   # --------------------------------------------
-  - stage: build
+  - stage: build+push:latest
     skip_cleanup: true
     script:
-      - make build
-      - make run CMD=version
+      - make build TAG=latest
+      - make run TAG=latest CMD=version
+      - make pus TAG=latest
+    on:
+      branch: master
   # --------------------------------------------
-  - stage: push:latest
-    deploy:
-      skip_cleanup: true
-      provider: script
-      script: make push TAG=latest
-      on:
-        branch: master
-  # --------------------------------------------
-  - stage: push:tag
-    deploy:
-      skip_cleanup: true
-      provider: script
-      script: make push TAG=$TRAVIS_TAG
-      on:
-        tags: true
+  - stage: build+push:tag
+    skip_cleanup: true
+    script:
+      - make build TAG=$TRAVIS_TAG
+      - make run TAG=$TRAVIS_TAG CMD=version
+      - make push TAG=$TRAVIS_TAG
+    on:
+      tags: true
   # --------------------------------------------
