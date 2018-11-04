@@ -42,12 +42,13 @@ jobs:
       branch: master
   # --------------------------------------------
   - stage: build+push:tag
+    if:
+      tag IS present
     before_deploy:
       - make build TAG=$TRAVIS_TAG
       - make run TAG=$TRAVIS_TAG CMD=version
     deploy:
       provider: script
       script: make push TAG=$TRAVIS_TAG
-    on:
-      tags: true
+
   # --------------------------------------------
