@@ -36,7 +36,7 @@ jobs:
     script:
       - make build TAG=latest
       - make run TAG=latest CMD=version
-      - make pus TAG=latest
+      - make push TAG=latest
     on:
       branch: master
   # --------------------------------------------
