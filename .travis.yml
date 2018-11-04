@@ -2,16 +2,16 @@ language: go
 go:
   - 1.11.x
 
-branches:
-  only:
-  - /.*/
+# branches:
+#   only:
+#   - /.*/
 
-addons:
-  apt:
-    packages:
-    - docker-ce
+# addons:
+#   apt:
+#     packages:
+#     - docker-ce
 
-sudo: required
+# sudo: required
 
 services:
 - docker
