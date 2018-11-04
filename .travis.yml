@@ -26,6 +26,11 @@ env:
 jobs:
   include:
   # --------------------------------------------
+  - stage: login
+    skip_cleanup: true
+    script: 
+      - make login
+  # --------------------------------------------
   - stage: test
     skip_cleanup: true
     script: 
