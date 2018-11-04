@@ -1,0 +1,21 @@
+language: go
+go: 
+  - 1.11.x
+
+branches:
+  only:
+  - master
+
+addons:
+  apt:
+    packages:
+      - docker-ce
+
+sudo: required
+
+services:
+  - docker
+
+script:
+  - docker build -t alexleonhardt/gocd-seeder .
+  - docker run --rm alexleonhardt/gocd-seeder version
