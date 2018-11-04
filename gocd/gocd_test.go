@@ -295,7 +295,7 @@ func TestDeleteConfigRepoUnknownHost(t *testing.T) {
 	testGoCD := gocd.New(
 		ctx,
 		map[string]string{
-			"GoCDURL":      "http://unknonwhost:9090/",
+			"GoCDURL":      "http://unknownhost:9090/",
 			"GoCDUser":     os.Getenv("GOCD_USER"),
 			"GoCDPassword": os.Getenv("GOCD_PASSWORD"),
 		},
@@ -309,7 +309,7 @@ func TestDeleteConfigRepoUnknownHost(t *testing.T) {
 
 	_, err := testGoCD.DeleteConfigRepo(exampleConfigRepo, "myprefix")
 	assert.NotNil(t, err)
-	assert.EqualError(t, err, "error executing http request to delete a gocd config repo: Delete http://unknonwhost:9090//go/api/admin/config_repos/myprefix-one: dial tcp: lookup unknonwhost: no such host")
+	assert.Regexp(t, "error executing http request to delete a gocd config repo: Delete .* no such host", err)
 }
 
 func TestDeleteConfigRepoOK(t *testing.T) {
