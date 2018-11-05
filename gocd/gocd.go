@@ -93,6 +93,8 @@ func (g *GoCD) NewRequest(verb string, path string, headers http.Header, body io
 		req.SetBasicAuth(g.User, g.Password)
 	}
 
+	req.Header = headers
+
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating http request")
 	}
