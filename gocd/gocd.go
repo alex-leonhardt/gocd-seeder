@@ -140,7 +140,7 @@ func (g *GoCD) GetConfigRepo(repo *github.Repository, prefix string) (ConfigRepo
 
 	id := fmt.Sprintf("%s%s", prefix, *repo.Name)
 
-	req, err := g.NewRequest("GET", id, nil, nil)
+	req, err := g.NewRequest(http.MethodGet, id, nil, nil)
 	if err != nil {
 		return ConfigRepo{}, errors.Wrap(err, "error creating request to retrieve gocd config repo")
 	}
@@ -189,7 +189,7 @@ func (g *GoCD) CreateConfigRepo(repo *github.Repository, prefix string) (ConfigR
 		return ConfigRepo{}, errors.Wrap(err, "error marshalling json to create gocd config repo")
 	}
 
-	req, err := g.NewRequest("POST", "", nil, bytes.NewBuffer(postBody))
+	req, err := g.NewRequest(http.MethodPost, "", nil, bytes.NewBuffer(postBody))
 	if err != nil {
 		return ConfigRepo{}, errors.Wrap(err, "error creating http post request")
 	}
@@ -221,7 +221,7 @@ func (g *GoCD) DeleteConfigRepo(repo *ConfigRepo, prefix string) (*http.Response
 		prefix = fmt.Sprintf("%s-", prefix)
 	}
 
-	req, err := g.NewRequest("DELETE", repo.ID, nil, nil)
+	req, err := g.NewRequest(http.MethodDelete, repo.ID, nil, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating new http request")
 	}
