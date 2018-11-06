@@ -39,8 +39,8 @@ jobs:
     deploy:
       provider: script
       script: make push TAG=latest
-    on:
-      branch: master
+      on:
+        branch: master
   # --------------------------------------------
   - stage: build+push:tag
     if:
@@ -51,7 +51,7 @@ jobs:
     deploy:
       provider: script
       script: make push TAG=$TRAVIS_TAG
-    on:
-      tags: true
-      all_branches: true
+      on:
+        tags: true
+        all_branches: true
   # --------------------------------------------
