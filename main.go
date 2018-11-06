@@ -151,6 +151,8 @@ func main() {
 
 	// ------------------------------------------------
 
+	level.Info(logger).Log("version", versionString, "msg", "app started")
+
 	go func() {
 
 		for {
