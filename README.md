@@ -9,12 +9,13 @@ A GoCD-Seeder scans a GitHub org for repositories that contain a pre-specified "
 
 You can now use the below command to just pull down the latest `tag`.
 
-_NOTE: as of 3/11/18 -- this was previously `master` (so `:latest` will correspond to `f8c3fafed4555ee25053f9fdc0ae368d0657e6e4`) but I believe it's better to use tags so it's not a moving target when you rely on a specific version_
+Releases: https://hub.docker.com/r/alexleonhardt/gocd-seeder/tags/
 
 
 ```
 docker pull alexleonhardt/gocd-seeder:<tag>
 ```
+
 `tag` will correspond to tags in github repo (https://github.com/alex-leonhardt/gocd-seeder/releases)
 
 #### Build own
