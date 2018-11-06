@@ -122,6 +122,7 @@ func main() {
 
 	if os.Getenv("LOG_LEVEL") == "DEBUG" {
 		logger = level.NewFilter(logger, level.AllowDebug())
+		gocd.DEBUG = "DEBUG"
 	} else {
 		logger = level.NewFilter(logger, level.AllowInfo())
 	}

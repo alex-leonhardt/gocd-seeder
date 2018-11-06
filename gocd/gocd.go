@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -41,6 +42,9 @@ type AllConfigRepos struct {
 	Links    map[string]map[string]string `json:"_links,omitempty"`
 	Embedded map[string][]ConfigRepo      `json:"_embedded,omitempty"`
 }
+
+// DEBUG flag
+var DEBUG string
 
 /*
 
@@ -97,6 +101,11 @@ func (g *GoCD) NewRequest(verb string, path string, headers http.Header, body io
 
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating http request")
+	}
+
+	if DEBUG == "DEBUG" {
+		debugRequest, _ := httputil.DumpRequestOut(req, false)
+		level.Debug(g.logger).Log("msg", "NewRequest: "+string(debugRequest))
 	}
 
 	return req, nil
