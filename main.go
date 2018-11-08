@@ -4,6 +4,7 @@ package main
 import (
 	"expvar"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -44,18 +45,30 @@ func help() {
 
 Required:
 =========
-GITHUB_API_KEY  (e.g.: 1235436)
+GITHUB_API_KEY  (e.g.: 1235436, use GITHUB_SECRETS_PATH when deploying to kubernetes)
 GITHUB_ORG      (e.g.: gooflix)
 
 Optional:
 =========
 GITHUB_TOPIC    (default: ci-gocd)
 GOCD_URL        (default: http://localhost:8081)
-GOCD_USER       (e.g.: admin)
-GOCD_PASSWORD   (e.g.: admin)
+GOCD_USER       (e.g.: admin, use GOCD_SECRETS_PATH when deploying to kubernetes)
+GOCD_PASSWORD   (e.g.: admin, use GOCD_SECRETS_PATH when deploying to kubernetes)
 HTTP_STATS_IP   (default: "")
 HTTP_STATS_PORT (default: 9090)
 LOG_LEVEL       (e.g.: DEBUG)
+
+Kubernetes:
+===========
+
+Optional, howver, recommended to use as env vars can be seen in clear in the dashboard :facepalm:
+
+GITHUB_SECRETS_PATH (e.g: /secrets/github)
+-- if set, must contain a file "api_key" with the github api key
+
+GOCD_SECRETS_PATH (e.g.: /secrets/gocd)
+-- if set, must contain a file "gocd_password" with the password corresponding to the gocd_user
+-- if set, must contain a file "gocd_user"     with the username to use to connect to GoCD
 `)
 	os.Exit(0)
 }
@@ -67,6 +80,28 @@ func Getenv(key, fallback string) string {
 		return fallback
 	}
 	return strings.Trim(value, "\n")
+}
+
+// ConfigReader provides a interface to be able to swap out the implementation for ReadSecretFromFile
+type ConfigReader interface {
+	Read() (string, error)
+}
+
+// ConfigFileReader implements ConfigReader
+type ConfigFileReader struct {
+	path string
+}
+
+// Read implements the Read() method of ConfigReader (interface)
+func (c ConfigFileReader) Read() (string, error) {
+	value, err := ioutil.ReadFile(c.path)
+	return string(value), err
+}
+
+// ReadSecretFromFile takes a ConfigReader, invokes Read() removes the trailing NewLine char if one is present, returns: string, error
+func ReadSecretFromFile(reader ConfigReader) (string, error) {
+	value, err := reader.Read()
+	return strings.Trim(value, "\n"), err
 }
 
 // ------------------------------------------------
@@ -114,6 +149,9 @@ func main() {
 		"StatsPort": Getenv("HTTP_STATS_PORT", "9090"),
 	}
 
+	githubSecretsPath := Getenv("GITHUB_SECRETS_PATH", "")
+	gocdSecretsPath := Getenv("GOCD_SECRETS_PATH", "")
+
 	// ------------------------------------------------
 
 	logger := log.NewJSONLogger(os.Stdout)
@@ -125,6 +163,48 @@ func main() {
 	} else {
 		logger = level.NewFilter(logger, level.AllowInfo())
 	}
+
+	if githubSecretsPath != "" {
+		var value string
+		var err error
+		reader := ConfigFileReader{
+			path: githubSecretsPath + "/api_key",
+		}
+		// read config file and set to GithubAPIKey in githubConfig map
+		value, err = ReadSecretFromFile(reader)
+		githubConfig["GithubAPIKey"] = value
+		if err != nil {
+			level.Error(logger).Log("msg", err)
+			panic(err)
+		}
+	}
+
+	if gocdSecretsPath != "" {
+		var value string
+		var err error
+		pwReader := ConfigFileReader{
+			path: githubSecretsPath + "/gocd_password",
+		}
+		usrReader := ConfigFileReader{
+			path: githubSecretsPath + "/gocd_user",
+		}
+		// read gocd_password file and set to GoCDPassword in gocdConfig map
+		value, err = ReadSecretFromFile(pwReader)
+		gocdConfig["GoCDPassword"] = value
+		if err != nil {
+			level.Error(logger).Log("msg", err)
+			panic(err)
+		}
+		// read gocd_user file and set to GoCDUser in gocdConfig map
+		value, err = ReadSecretFromFile(usrReader)
+		gocdConfig["GoCDUser"] = value
+		if err != nil {
+			level.Error(logger).Log("msg", err)
+			panic(err)
+		}
+	}
+
+	// --------------------------------------------------
 
 	defaultHTTPClient := &http.Client{
 		Timeout: 10 * time.Second,
