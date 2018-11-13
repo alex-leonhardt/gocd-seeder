@@ -183,10 +183,10 @@ func main() {
 		var value string
 		var err error
 		pwReader := ConfigFileReader{
-			path: githubSecretsPath + "/gocd_password",
+			path: gocdSecretsPath + "/gocd_password",
 		}
 		usrReader := ConfigFileReader{
-			path: githubSecretsPath + "/gocd_user",
+			path: gocdSecretsPath + "/gocd_user",
 		}
 		// read gocd_password file and set to GoCDPassword in gocdConfig map
 		value, err = ReadSecretFromFile(pwReader)
